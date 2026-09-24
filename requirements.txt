@@ -1,0 +1,23 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+--find-links https://download.openmmlab.com/mmcv/dist/cpu/torch2.1/index.html
+
+# Core numerical and vision dependencies
+numpy==1.26.4
+opencv-python==4.11.0.86
+
+# CPU builds verified under WSL with Python 3.10
+torch==2.1.0+cpu
+torchvision==0.16.0+cpu
+
+# OpenMMLab semantic segmentation
+mmcv==2.1.0
+mmengine==0.10.7
+mmsegmentation==1.2.2
+ftfy==6.3.1
+regex==2026.9.10
+
+# Object detection
+ultralytics==8.4.161
+
+# Testing
+pytest==8.4.2
