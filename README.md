@@ -1,6 +1,6 @@
 # Mobility-Aware Accessibility Map
 
-교통약자의 이동 접근성을 위한 비전 인식 PoC 프로젝트입니다. 현재 프로젝트는 다음 모델을 사용합니다.
+캠퍼스의 물리적 이동환경과 시간에 따라 변하는 출입 가능 정보를 통합하여, 사용자의 mobility profile과 현재 시각에 따라 이용 가능한 경로를 제공하는 Edge-assisted Mobility-Aware Routing PoC
 
 - YOLO: 차량, 보행자, 장애물과 향후 사용자 정의 학습을 통해 계단, 단차, 경사로 감지
 - DeepLabV3+ (Cityscapes): 도로, 보도 등 영역 분할
