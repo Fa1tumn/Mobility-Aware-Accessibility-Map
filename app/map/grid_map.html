@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Grid Regions and Observation Points</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;height:100vh;display:flex;flex-direction:column;font:14px Arial,sans-serif;color:#1e293b;background:#f8fafc}
+header{padding:16px 22px;border-bottom:1px solid #ddd;background:white;flex-shrink:0}
+h1{font-size:20px;margin:0 0 8px}p{margin:6px 0;line-height:1.5}
+.controls{display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:9px;font-size:13px}
+#notice{padding:8px 12px;background:#fff4d6;border-radius:5px;color:#855700;font-size:13px}
+#status{color:#64748b}.workspace{display:flex;flex:1;min-height:0}
+#map{flex:1;min-width:0;background:#e9eef1}
+aside{width:400px;flex-shrink:0;display:flex;flex-direction:column;border-left:1px solid #d9e2ec;background:white;min-height:0}
+.panel-head{padding:16px;border-bottom:1px solid #e2e8f0}
+h2{font-size:18px;margin:0 0 8px}#point-count{color:#64748b;font-size:13px}
+#selected-region{background:#eff6ff;border-radius:6px;margin-top:10px;padding:10px;font-size:13px;line-height:1.7}
+#point-list{overflow:auto;flex:1;padding:10px 12px}
+.point-card{border:1px solid #dbe2ea;border-radius:8px;padding:12px;margin-bottom:10px;background:white;scroll-margin:12px}
+.point-card.in-region{background:#f0f7ff}.point-card.active{border:2px solid #2563eb;padding:11px}
+.point-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.point-button{border:0;background:#2563eb;color:white;border-radius:5px;padding:5px 9px;font-weight:bold;cursor:pointer}
+.region-tag{font-size:12px;color:#475569}.coordinates{font:12px monospace;color:#475569;margin:9px 0}
+.point-time{font-size:12px;color:#64748b;margin:6px 0}
+dl{display:grid;grid-template-columns:140px 1fr;gap:5px;margin:10px 0;font-size:12px;line-height:1.5}
+dt{color:#64748b}dd{margin:0;word-break:break-word}
+details{font-size:12px;color:#475569}summary{cursor:pointer}
+pre{white-space:pre-wrap;word-break:break-word;font-size:11px;background:#f1f5f9;padding:8px;max-height:260px;overflow:auto}
+.cell-label{background:transparent;border:0;text-align:center;font-size:10px;font-weight:bold;white-space:nowrap;line-height:1.2;text-shadow:0 0 3px white,0 0 3px white}
+.point-dot{background:#2563eb;border:2px solid white;border-radius:50%;color:white;text-align:center;font:bold 8px/16px Arial;box-shadow:0 1px 4px #555}
+.legend{padding:10px 14px;background:white;border-radius:5px;box-shadow:0 1px 5px #999;line-height:1.7;font-size:12px}
+.bar{height:9px;width:160px;background:linear-gradient(to right,#ffffcc,#fd8d3c,#800026)}
+@media(max-width:1000px){aside{width:340px}header{padding:12px 16px}h1{font-size:18px}}
+@media(max-width:720px){body{height:auto;min-height:100vh}.workspace{flex-direction:column;min-height:900px}#map{height:55vh;min-height:370px;flex:none}aside{width:100%;height:55vh;min-height:400px;border-left:0;border-top:1px solid #ddd}}
+</style>
+</head>
+<body>
+<header>
+<h1 id="title"></h1>
+<p id="summary"></p>
+<p id="notice" hidden></p>
+<div class="controls">
+<label><input type="checkbox" id="tiles" checked>Basemap</label>
+<label><input type="checkbox" id="labels" checked>Region IDs and values</label>
+<label><input type="checkbox" id="points" checked>Observation points</label>
+<span id="status">Select a point on the map or in the sidebar to view its region.</span>
+</div>
+</header>
+<main class="workspace">
+<div id="map"></div>
+<aside aria-label="All observation point data">
+<div class="panel-head">
+<h2>All observation points</h2>
+<div id="point-count"></div>
+<div id="selected-region">Select a point or region to view its aggregated values.</div>
+</div>
+<div id="point-list"></div>
+</aside>
+</main>
+<script id="grid-data" type="application/json">__GRID_DATA__</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const data = JSON.parse(document.getElementById('grid-data').textContent);
+const points = data.points || [];
+const showValue = value => value === null || value === undefined ? 'N/A' : Number(value).toFixed(2);
+const showCoordinate = value => Number(value).toFixed(6);
+document.getElementById('title').textContent = data.title;
+document.getElementById('summary').textContent = data.rows + ' rows × ' + data.columns + ' columns · ' + data.cells.length + ' observed regions · ' + points.length + ' points · One ' + data.label + ' value per region';
+document.getElementById('point-count').textContent = 'All ' + points.length + ' points are listed below. Blue point IDs match the map.';
+if (data.simulated) {
+    document.getElementById('notice').hidden = false;
+    document.getElementById('notice').textContent = 'SIMULATED DATA: Point locations and measurements are for testing grid interactions. They do not represent surveyed roads, actual routes or campus accessibility.';
+}
+const cards = {};
+const rectangles = {};
+const markers = {};
+let map = null;
+function selectRegion(gridId) {
+    for (const cell of data.cells) {
+        const selected = cell.grid_id === gridId;
+        if (rectangles[cell.grid_id]) {
+            rectangles[cell.grid_id].setStyle({color:selected ? '#2563eb' : '#475569',weight:selected ? 4 : 1.1});
+        }
+    }
+    for (const point of points) {
+        cards[point.point_id].classList.toggle('in-region',point.grid_id === gridId);
+        cards[point.point_id].classList.remove('active');
+    }
+    const cell = data.cells.find(cell => cell.grid_id === gridId);
+    document.getElementById('selected-region').textContent = 'Region G' + gridId + ' · ' + cell.observation_count + ' observations · ' + data.label + ' = ' + showValue(cell[data.field]) + ' · Region weight = ' + showValue(cell.weight);
+}
+function selectPoint(pointId) {
+    const point = points.find(point => point.point_id === pointId);
+    selectRegion(point.grid_id);
+    cards[pointId].classList.add('active');
+    cards[pointId].scrollIntoView({behavior:'smooth',block:'nearest'});
+    if (map) {
+        map.panTo([point.latitude,point.longitude]);
+        markers[pointId].openPopup();
+    }
+}
+function addField(list,name,value) {
+    const term = document.createElement('dt');
+    const description = document.createElement('dd');
+    term.textContent = name;
+    description.textContent = value === null || value === undefined ? 'N/A' : String(value);
+    list.append(term,description);
+}
+for (const point of points) {
+    const card = document.createElement('article');
+    card.className = 'point-card';
+    card.id = 'point-' + point.point_id;
+    const heading = document.createElement('div');
+    heading.className = 'point-heading';
+    const button = document.createElement('button');
+    button.className = 'point-button';
+    button.textContent = point.point_id;
+    button.setAttribute('aria-label','View observation point ' + point.point_id);
+    button.onclick = () => selectPoint(point.point_id);
+    const tag = document.createElement('span');
+    tag.className = 'region-tag';
+    tag.textContent = 'Region G' + point.grid_id + ' · Source ID ' + (point.id ?? 'N/A');
+    heading.append(button,tag);
+    const coordinates = document.createElement('p');
+    coordinates.className = 'coordinates';
+    coordinates.textContent = 'Lat ' + showCoordinate(point.latitude) + '  Lon ' + showCoordinate(point.longitude);
+    const time = document.createElement('p');
+    time.className = 'point-time';
+    time.textContent = point.record_time || 'Time unknown';
+    const list = document.createElement('dl');
+    addField(list,'Surface / confidence',(point.surface_label ?? 'N/A') + ' / ' + showValue(point.surface_confidence));
+    addField(list,'Slope (%)',showValue(point.ramp));
+    addField(list,'Vibration frequency (Hz)',showValue(point.ave_vibration));
+    addField(list,'Object count',showValue(point.object));
+    addField(list,'Point weight',showValue(point.point_weight));
+    addField(list,'Region weight',showValue(point.region_weight));
+    const details = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = 'Show full record';
+    const raw = document.createElement('pre');
+    raw.textContent = JSON.stringify(point,null,2);
+    details.append(summary,raw);
+    card.append(heading,coordinates,time,list,details);
+    document.getElementById('point-list').append(card);
+    cards[point.point_id] = card;
+}
+if (typeof L === 'undefined') {
+    document.getElementById('status').textContent = 'The map library could not load. Check your connection and refresh. Point data remains available in the sidebar.';
+} else {
+    map = L.map('map',{preferCanvas:true,maxZoom:22});
+    const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+        maxNativeZoom:19,maxZoom:22,
+        attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    });
+    const tileToggle = document.getElementById('tiles');
+    const localFile = location.protocol === 'file:';
+    if (localFile) {
+        tileToggle.checked = false;
+        tileToggle.disabled = true;
+        document.getElementById('status').textContent = 'Basemap disabled for local files. Run python -m scripts.open_grid from the project folder to view the map over HTTP.';
+    }
+    tiles.on('tileerror',() => {
+        map.removeLayer(tiles);
+        tileToggle.checked = false;
+        document.getElementById('status').textContent = 'Basemap unavailable or access blocked. Regions and point data remain available. Check your connection before enabling Basemap again.';
+    });
+    const bounds = [[data.south,data.west],[data.north,data.east]];
+    if (data.cells.length) {
+        const occupied = data.cells.flatMap(cell => [[cell.south,cell.west],[cell.north,cell.east]]);
+        map.fitBounds(L.latLngBounds(occupied).pad(0.03));
+    } else {
+        map.fitBounds(bounds);
+    }
+    if (!localFile) tiles.addTo(map);
+    const gridStyle = {color:'#59636e',weight:0.7,opacity:0.6,interactive:false};
+    for (let i=0;i<=data.rows;i++) {
+        const lat = Math.max(data.south,data.north-i*data.size);
+        L.polyline([[lat,data.west],[lat,data.east]],gridStyle).addTo(map);
+    }
+    for (let j=0;j<=data.columns;j++) {
+        const lon = Math.min(data.east,data.west+j*data.size);
+        L.polyline([[data.south,lon],[data.north,lon]],gridStyle).addTo(map);
+    }
+    const labels = L.layerGroup().addTo(map);
+    const pointLayer = L.layerGroup().addTo(map);
+    for (const cell of data.cells) {
+        const value = showValue(cell[data.field]);
+        const rectangle = L.rectangle([[cell.south,cell.west],[cell.north,cell.east]],{
+            color:'#475569',weight:1.1,fillColor:cell.color,fillOpacity:0.55
+        }).addTo(map);
+        rectangle.on('click',() => {
+            selectRegion(cell.grid_id);
+            const first = points.find(point => point.grid_id === cell.grid_id);
+            if (first) cards[first.point_id].scrollIntoView({behavior:'smooth',block:'nearest'});
+        });
+        rectangles[cell.grid_id] = rectangle;
+        const icon = L.divIcon({className:'cell-label',html:'G' + cell.grid_id + '<br>' + value,iconSize:[44,24],iconAnchor:[22,12]});
+        const label = L.marker([(cell.north+cell.south)/2,(cell.west+cell.east)/2],{icon}).addTo(labels);
+        label.on('click',() => {
+            selectRegion(cell.grid_id);
+            const first = points.find(point => point.grid_id === cell.grid_id);
+            if (first) cards[first.point_id].scrollIntoView({behavior:'smooth',block:'nearest'});
+        });
+    }
+    for (const point of points) {
+        const icon = L.divIcon({className:'point-dot',html:point.point_id,iconSize:[20,20],iconAnchor:[10,10]});
+        const marker = L.marker([point.latitude,point.longitude],{icon}).addTo(pointLayer);
+        const popup = document.createElement('div');
+        popup.style.whiteSpace = 'pre-line';
+        popup.textContent = point.point_id + ' · Region G' + point.grid_id + '\nLatitude ' + showCoordinate(point.latitude) + '\nLongitude ' + showCoordinate(point.longitude) + '\nPoint weight ' + showValue(point.point_weight) + '\nRegion weight ' + showValue(point.region_weight) + '\nFull record in the sidebar';
+        marker.bindPopup(popup,{minWidth:220});
+        marker.on('click',() => selectPoint(point.point_id));
+        markers[point.point_id] = marker;
+    }
+    tileToggle.onchange = event => {
+        if (event.target.checked) {
+            document.getElementById('status').textContent = 'Select a point on the map or in the sidebar to view its region.';
+            tiles.addTo(map);
+        } else {
+            map.removeLayer(tiles);
+        }
+    };
+    document.getElementById('labels').onchange = event => event.target.checked ? labels.addTo(map) : map.removeLayer(labels);
+    document.getElementById('points').onchange = event => event.target.checked ? pointLayer.addTo(map) : map.removeLayer(pointLayer);
+    const legend = L.control({position:'bottomleft'});
+    legend.onAdd = () => {
+        const div = L.DomUtil.create('div','legend');
+        div.innerHTML = '<b>Aggregated region values</b><div class="bar"></div>';
+        const text = document.createElement('div');
+        text.textContent = data.low.toFixed(2) + ' → ' + data.high.toFixed(2) + ' · Grey = unknown';
+        div.appendChild(text);
+        return div;
+    };
+    legend.addTo(map);
+    window.addEventListener('resize',() => map.invalidateSize());
+}
+</script>
+</body>
+</html>
