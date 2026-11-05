@@ -7,3 +7,5 @@ output/grid/
 output/roboflow/
 /yolov11/*.mp4
 /app/inference/example_photo/
+/.reference-rubik/
+/.android-build/

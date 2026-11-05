@@ -1,0 +1,8 @@
+.buildozer/
+.venv/
+bin/
+dist/
+__pycache__/
+.pytest_cache/
+.kivy/
+config.json
