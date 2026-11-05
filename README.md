@@ -148,6 +148,21 @@ python -m scripts.test_grid --sqlite app/map/test_observations.sqlite3 --field a
 python -m scripts.test_grid
 ```
 
+최신 관측일의 격자 지도를 한 번에 갱신하려면 프로젝트 루트에서 실행합니다.
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.refresh_grid
+```
+
+Supabase에서 매번 새로 조회하고, `record_time`의 최신 날짜(UTC)에 해당하는 기록 중 유효한 좌표가 있는 데이터만 사용합니다.
+좌표가 없는 최신 기록을 대신하여 과거 날짜를 선택하지 않습니다. 제외된 좌표 누락·오류 기록은 `data/supabase_unmapped_observations.json`에 저장합니다.
+기본 격자 간격은 `0.0001`도이며 진동 주파수로 색상을 표시합니다. `--size 0.0002` 또는 `--field ramp`로 변경할 수 있습니다.
+결과는 `output/grid/grid.png`, `grid.html`, `grid.json`, `grid_observations.json`에 덮어씁니다.
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.open_grid output/grid/grid.html
+```
+
 `--field ramp` 또는 `--field ave_vibration`을 추가하면 개별 지표를 확인할 수 있습니다.
 
 데이터 조회와 시각화를 나누어 실행할 수도 있습니다.
