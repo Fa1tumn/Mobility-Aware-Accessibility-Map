@@ -10,3 +10,4 @@ output/roboflow/
 /.reference-rubik/
 /.android-build/
 output/route/
+data/events/events.json

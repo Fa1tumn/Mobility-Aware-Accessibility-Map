@@ -214,12 +214,28 @@ python -m pytest tests/test_grid.py tests/test_grid_map.py tests/test_supabase_r
 ```bash
 python -m scripts.route --graph tests/fixtures/routing_mini.geojson \
     --from A --to D --profile all --out output/route/route.geojson
+python -m scripts.route --graph tests/fixtures/routing_mini.geojson \
+    --from A --to D --profile wheelchair --explain     # 추천·최단·대안 경로와 선택 이유
 python -m scripts.demo_route                       # 9월 Hero 데모 (좌표 없는 6노드 graph)
-python -m pytest tests/test_routing_requirements.py tests/test_routing_geojson.py
+python -m pytest tests/test_routing_requirements.py tests/test_routing_geojson.py \
+    tests/test_directional_slope.py tests/test_route_choice.py tests/test_events.py tests/test_reroute.py
+```
+
+공사·통제나 정차 차량 같은 동적 이벤트는 수동으로 넣고, 유효시간이 지나면 자동으로 빠집니다.
+경로 계산에 `--events`로 넘기면 반영되고, 안내 중 재탐색 판단은 `app/nav/reroute.py`가 합니다.
+
+```bash
+python -m scripts.events add --type construction --edge BD --until 2026-11-21T18:00
+python -m scripts.events list
+python -m scripts.route --graph tests/fixtures/routing_mini.geojson --from A --to D \
+    --events data/events/events.json --explain
+python -m scripts.event_demo data/events/demo_mini.json    # 이벤트 → 재탐색 → 만료 시나리오
 ```
 
 - graph 형식, 단위, 출력 필드: [docs/routing-data-contract.md](docs/routing-data-contract.md)
 - 엔진 설계와 9월 검증 내용: [docs/routing-engine.md](docs/routing-engine.md)
+- 경로 선택, 이벤트, 재탐색 규칙: [docs/route-choice-and-events.md](docs/route-choice-and-events.md)
+- 전체 구조(L0~L7): [docs/navigation-architecture.md](docs/navigation-architecture.md)
 - `tests/fixtures/routing_mini.geojson`은 시험용 합성 graph입니다. 실험 구역 graph는 실측 후 `data/graph/`에 둡니다.
 
 ## 프로젝트 구조
