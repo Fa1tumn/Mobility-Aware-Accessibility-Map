@@ -12,14 +12,28 @@ hard constraint는 feasibility.py가 이미 걸렀다고 가정한다.
     이번 데모 프로파일은 w_slope=0이라 이 항이 꺼져 있다. 캠퍼스 경사로가
     대부분 -6도 내외로 균일해 변별력이 없기 때문이다. 나중에 켜더라도 위
     버그가 생기지 않도록 로직만 미리 맞춰둔다.
+
+오르막·내리막 분리 비용
+    프로필에 w_up 또는 w_down이 있으면 w_slope 대신 아래 식을 쓴다.
+    경사는 진행 방향 기준이다(역방향 간선은 Graph.outgoing이 부호를 뒤집어 준다).
+
+        오르막 g > 0:  w_up   × (g / 오르막 한도)²
+        내리막 g < 0:  w_down × (|g| / 내리막 한도)²
+
+    거리(100m 단위)를 곱해 더한다. 한도에 닿은 경사는 100m당 w_up(또는 w_down)이고,
+    경사가 두 배면 비용은 네 배다. 한도가 무한대(제한 없음)면 RAMP_LIMIT_PCT를 기준으로 쓴다.
+    미측정 경사는 방향을 모르므로 보수값(UNKNOWN_SLOPE_PROXY_DEG)을 오르막·내리막
+    양쪽에 넣어 보고 더 큰 쪽을 쓴다.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
+from app.graph.geo import deg_to_pct
 from app.graph.schema import Edge
-from app.profile.definitions import Profile, SURFACE_PENALTY
+from app.profile.definitions import RAMP_LIMIT_PCT, SURFACE_PENALTY, Profile
 
 # 거리 정규화 기준. 100m를 1.0으로 본다.
 DISTANCE_UNIT_M = 100.0
@@ -30,6 +44,9 @@ UNKNOWN_SLOPE_PROXY_DEG = 3.0
 # 문턱 미측정 시 가정값(cm). 0으로 두면 미측정이 유리해진다.
 UNKNOWN_THRESHOLD_CM = 1.0
 
+# 방향별 경사 비용: 이 이상인 경사를 비용 사유로 표시한다(%).
+SLOPE_REASON_PCT = 5.0
+
 
 @dataclass
 class Cost:
@@ -37,13 +54,44 @@ class Cost:
     reasons: list[str] = field(default_factory=list)   # 부담 요인
 
 
+def _slope_ref_pct(limit_pct: float) -> float:
+    """제곱 비용의 기준 경사(%). 한도가 없으면(무한대) 법규 참고값을 쓴다."""
+    return limit_pct if math.isfinite(limit_pct) else RAMP_LIMIT_PCT
+
+
+def directional_slope_factor(slope_pct: float, profile: Profile) -> float:
+    """진행 방향 경사(%) 하나의 비용 계수(100m당). 오르막·내리막을 따로 본다."""
+    if slope_pct > 0:
+        ratio = slope_pct / _slope_ref_pct(profile.uphill_limit_pct)
+        return (profile.w_up or 0.0) * ratio * ratio
+    if slope_pct < 0:
+        ratio = -slope_pct / _slope_ref_pct(profile.downhill_limit_pct)
+        return (profile.w_down or 0.0) * ratio * ratio
+    return 0.0
+
+
 def compute(edge: Edge, profile: Profile) -> Cost:
     d = edge.distance_m / DISTANCE_UNIT_M
     total = profile.w_distance * d
     reasons: list[str] = []
 
-    # --- 경사 ---
-    if profile.w_slope:
+    # --- 경사 (오르막·내리막 분리) ---
+    if profile.uses_directional_slope_cost:
+        if edge.slope_pct is None:
+            # 방향을 모르므로 양쪽 중 더 부담스러운 쪽으로 본다. 0으로 두지 않는다.
+            proxy = deg_to_pct(UNKNOWN_SLOPE_PROXY_DEG)
+            factor = max(directional_slope_factor(proxy, profile),
+                         directional_slope_factor(-proxy, profile))
+            reasons.append("경사 미측정")
+        else:
+            factor = directional_slope_factor(edge.slope_pct, profile)
+            if edge.abs_slope_pct >= SLOPE_REASON_PCT:
+                direction = "오르막" if edge.slope_pct > 0 else "내리막"
+                reasons.append(f"{direction} {edge.abs_slope_pct:.1f}%")
+        total += factor * d
+
+    # --- 경사 (방향 구분 없는 선형, 호환용) ---
+    elif profile.w_slope:
         s = edge.abs_slope_deg
         if s is None:
             s = UNKNOWN_SLOPE_PROXY_DEG
