@@ -38,7 +38,9 @@ def check(
 
     s = edge.abs_slope_deg
     if s is not None and s > profile.max_slope_deg:
-        reasons.append(f"경사 {s:.1f}° > 허용 {profile.max_slope_deg:.1f}°")
+        direction = "오르막" if edge.is_uphill else "내리막"
+        reasons.append(
+            f"{direction} 경사 {edge.abs_slope_pct:.1f}% > 허용 {profile.max_slope_pct:.1f}%")
 
     if WIDTH_RANK[edge.width_level] < WIDTH_RANK[profile.min_width_level]:
         reasons.append(f"통행폭 {edge.width_level} (최소 {profile.min_width_level})")

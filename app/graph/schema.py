@@ -9,15 +9,29 @@
 
 단위 규약 (혼동 방지를 위해 필드명에 단위를 넣는다):
     distance_m     미터
-    slope_deg      도(degree). 진행 방향 오르막이 +, 내리막이 -
+    slope_pct      경사율(%). 데이터의 기본 단위. from→to 방향 오르막이 +, 내리막이 -
+    slope_deg      도(degree). slope_pct와 같은 값의 각도 표현(엔진 내부 비교용)
     threshold_cm   센티미터
     stairs         계단 단수(개수). 0이면 계단 없음
+    geometry       [[경도, 위도], ...]. from_node에서 to_node 순서(GeoJSON 좌표 순서)
+
+slope_pct와 slope_deg 중 하나만 주면 나머지는 자동으로 채운다. 둘 다 주면
+같은 값이어야 한다. 역방향으로 지날 때는 둘 다 부호가 뒤집히고 geometry도 뒤집힌다.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field, asdict
 from typing import Optional
+
+from app.graph.geo import deg_to_pct, pct_to_deg
+
+# slope_pct와 slope_deg를 함께 줄 때 허용하는 불일치(도)
+SLOPE_SYNC_TOLERANCE_DEG = 0.05
+
+# 간선 geometry 끝점과 노드 좌표 사이에 허용하는 거리(m)
+GEOMETRY_ENDPOINT_TOLERANCE_M = 5.0
 
 # 허용값
 SURFACES = {"unknown", "asphalt", "block", "tile", "concrete", "tactile", "damaged"}
@@ -57,6 +71,10 @@ class Edge:
     ramp: bool = False                    # 경사로 존재 여부
     threshold_cm: float = 0.0             # 문턱 높이
     slope_deg: Optional[float] = None     # 미측정이면 None
+    slope_pct: Optional[float] = None     # 미측정이면 None. 데이터 파일은 이 필드를 쓴다
+
+    # --- 위치 ---
+    geometry: Optional[list[list[float]]] = None   # [[lon, lat], ...] from→to
 
     # --- 카메라 추정 ---
     surface: str = "unknown"
@@ -87,6 +105,26 @@ class Edge:
             raise SchemaError(f"{self.id}: env '{self.env}' 미정의")
         if not 0.0 <= self.confidence <= 1.0:
             raise SchemaError(f"{self.id}: confidence는 0~1 ({self.confidence})")
+        self._sync_slope()
+        if self.geometry is not None:
+            if len(self.geometry) < 2 or any(len(p) < 2 for p in self.geometry):
+                raise SchemaError(f"{self.id}: geometry는 [[lon, lat], ...] 형식의 점 2개 이상")
+            self.geometry = [[float(p[0]), float(p[1])] for p in self.geometry]
+
+    def _sync_slope(self) -> None:
+        """slope_pct와 slope_deg를 같은 값으로 맞춘다."""
+        if self.slope_pct is not None and not math.isfinite(self.slope_pct):
+            raise SchemaError(f"{self.id}: slope_pct가 유한한 수가 아니다")
+        if self.slope_deg is not None and not (math.isfinite(self.slope_deg) and abs(self.slope_deg) < 90):
+            raise SchemaError(f"{self.id}: slope_deg는 -90~90 사이여야 한다 ({self.slope_deg})")
+        if self.slope_pct is not None and self.slope_deg is None:
+            self.slope_deg = pct_to_deg(self.slope_pct)
+        elif self.slope_deg is not None and self.slope_pct is None:
+            self.slope_pct = deg_to_pct(self.slope_deg)
+        elif self.slope_pct is not None and self.slope_deg is not None:
+            if abs(pct_to_deg(self.slope_pct) - self.slope_deg) > SLOPE_SYNC_TOLERANCE_DEG:
+                raise SchemaError(
+                    f"{self.id}: slope_pct {self.slope_pct}%와 slope_deg {self.slope_deg}°가 다르다")
 
     @property
     def abs_slope_deg(self) -> Optional[float]:
@@ -94,8 +132,22 @@ class Edge:
         return None if self.slope_deg is None else abs(self.slope_deg)
 
     @property
+    def abs_slope_pct(self) -> Optional[float]:
+        """미측정이면 None."""
+        return None if self.slope_pct is None else abs(self.slope_pct)
+
+    @property
     def is_uphill(self) -> bool:
         return self.slope_deg is not None and self.slope_deg > 0
+
+    @property
+    def base_id(self) -> str:
+        """역방향 간선(':rev')이면 원래 간선 ID."""
+        return self.id[:-4] if self.id.endswith(":rev") else self.id
+
+    @property
+    def is_reverse(self) -> bool:
+        return self.id.endswith(":rev")
 
 
 @dataclass
@@ -111,16 +163,29 @@ class Graph:
 
     def validate(self) -> list[str]:
         """참조 무결성 확인. 문제 목록을 돌려준다(예외 아님)."""
+        from app.graph.geo import haversine_m
+
         problems = []
         for e in self.edges.values():
             if e.from_node not in self.nodes:
                 problems.append(f"{e.id}: from_node '{e.from_node}' 없음")
             if e.to_node not in self.nodes:
                 problems.append(f"{e.id}: to_node '{e.to_node}' 없음")
+            if e.geometry is None:
+                continue
+            for end, node_id in ((e.geometry[0], e.from_node), (e.geometry[-1], e.to_node)):
+                n = self.nodes.get(node_id)
+                if n is None or n.lat is None or n.lon is None:
+                    continue
+                gap = haversine_m(end[0], end[1], n.lon, n.lat)
+                if gap > GEOMETRY_ENDPOINT_TOLERANCE_M:
+                    problems.append(
+                        f"{e.id}: geometry 끝점이 노드 {node_id}에서 {gap:.1f}m 떨어져 있음 "
+                        f"(허용 {GEOMETRY_ENDPOINT_TOLERANCE_M:.0f}m)")
         return problems
 
     def outgoing(self, node_id: str) -> list[Edge]:
-        """무향 그래프로 취급한다. 역방향 통행 시 slope 부호를 뒤집어 돌려준다."""
+        """무향 그래프로 취급한다. 역방향 통행 시 slope 부호와 geometry를 뒤집어 돌려준다."""
         out = []
         for e in self.edges.values():
             if e.from_node == node_id:
@@ -130,6 +195,8 @@ class Graph:
                               "id": e.id + ":rev",
                               "from_node": e.to_node,
                               "to_node": e.from_node,
-                              "slope_deg": None if e.slope_deg is None else -e.slope_deg})
+                              "slope_deg": None if e.slope_deg is None else -e.slope_deg,
+                              "slope_pct": None if e.slope_pct is None else -e.slope_pct,
+                              "geometry": None if e.geometry is None else list(reversed(e.geometry))})
                 out.append(rev)
         return out

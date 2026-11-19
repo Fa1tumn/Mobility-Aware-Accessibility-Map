@@ -4,12 +4,21 @@
 특정 신체 조건을 가진 사람이 무엇을 선호하는지 시스템이 임의로 단정하지 않는다.
 아래 3종은 데모용 프리셋이며, 사용자가 값을 직접 조정할 수 있는 구조로 둔다.
 
-단위: max_slope_deg는 도(degree). Edge.slope_deg와 같은 단위여야 한다.
+단위: 데이터와 화면은 경사율(%)을 쓴다. max_slope_deg는 내부 비교용 각도이며,
+경사율로 정할 때는 pct_to_deg()로 변환한다. max_slope_pct 속성으로 %를 읽을 수 있다.
+
+법규 기준값(아래 상수), 사용자 능력, 프로필 한도는 서로 다른 설정이다.
+프리셋은 법규 기준을 시작값으로 쓴 데모용 값이며 사용자가 바꿀 수 있다.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+
+from app.graph.geo import deg_to_pct, pct_to_deg
+
+# 법규 참고 기준(경사로 기울기 1/12). 프로필 한도를 정할 때 참고값으로만 쓴다.
+RAMP_LIMIT_PCT = 100.0 / 12.0       # 8.33%
 
 
 @dataclass(frozen=True)
@@ -34,8 +43,17 @@ class Profile:
     p_threshold_per_cm: float = 0.0      # 문턱 1cm당
 
     def with_overrides(self, **kw) -> "Profile":
-        """사용자가 값을 바꾼 프로파일을 만든다."""
+        """사용자가 값을 바꾼 프로파일을 만든다. max_slope_pct로 경사 한도를 줄 수 있다."""
+        if "max_slope_pct" in kw:
+            kw["max_slope_deg"] = pct_to_deg(kw.pop("max_slope_pct"))
         return replace(self, **kw)
+
+    @property
+    def max_slope_pct(self) -> float:
+        """경사 한도(%). 90°(제한 없음)는 무한대로 본다."""
+        if self.max_slope_deg >= 90.0:
+            return float("inf")
+        return deg_to_pct(self.max_slope_deg)
 
 
 WIDTH_RANK = {"narrow": 0, "normal": 1, "wide": 2, "unknown": 1}
@@ -66,6 +84,10 @@ WHEELCHAIR = Profile(
     name="wheelchair",
     stairs_allowed=False,          # 계단은 통행 불가
     max_threshold_cm=2.0,          # 편의증진법 기준 참고값
+    # 9월 값 유지: 8°는 약 14.1%로, 경사로 기준 1/12(8.33%)보다 느슨하다.
+    # 9월 답사에서 캠퍼스 경사로가 약 -6°(약 10.5%)로 기록돼 1/12를 적용하면
+    # 데모 graph의 휠체어 경로가 모두 막힌다. 한도는 팀이 정할 값이므로 바꾸지 않고,
+    # with_overrides(max_slope_pct=RAMP_LIMIT_PCT)처럼 설정으로 조정한다.
     max_slope_deg=8.0,
     min_width_level="normal",
     w_distance=1.0,

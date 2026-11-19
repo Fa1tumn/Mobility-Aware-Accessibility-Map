@@ -51,7 +51,7 @@ def compute(edge: Edge, profile: Profile) -> Cost:
         ratio = s / max(profile.max_slope_deg, 1e-6)
         total += profile.w_slope * ratio * d
         if edge.slope_deg is not None and abs(edge.slope_deg) >= 3.0:
-            reasons.append(f"경사 {edge.slope_deg:+.1f}도")
+            reasons.append(f"경사 {edge.slope_pct:+.1f}%")
 
     # --- 노면 ---
     if profile.w_surface:

@@ -9,3 +9,4 @@ output/roboflow/
 /app/inference/example_photo/
 /.reference-rubik/
 /.android-build/
+output/route/

@@ -1,0 +1,205 @@
+{
+  "type": "FeatureCollection",
+  "name": "routing_mini (synthetic test graph, not real campus data)",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.67,
+          37.38
+        ]
+      },
+      "properties": {
+        "id": "A",
+        "name": "출발 (시험용)",
+        "kind": "junction"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.6704522,
+          37.38
+        ]
+      },
+      "properties": {
+        "id": "B",
+        "name": "짧은 길 분기",
+        "kind": "junction"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.6704522,
+          37.3802698
+        ]
+      },
+      "properties": {
+        "id": "D",
+        "name": "도착 (시험용)",
+        "kind": "junction"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.67,
+          37.3805396
+        ]
+      },
+      "properties": {
+        "id": "E",
+        "name": "우회로 시작",
+        "kind": "junction"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.6704522,
+          37.3805396
+        ]
+      },
+      "properties": {
+        "id": "C",
+        "name": "우회로 분기",
+        "kind": "junction"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            126.67,
+            37.38
+          ],
+          [
+            126.6704522,
+            37.38
+          ]
+        ]
+      },
+      "properties": {
+        "id": "AB",
+        "from_node": "A",
+        "to_node": "B",
+        "surface": "block",
+        "source": "survey",
+        "note": "평지",
+        "slope_pct": 0.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            126.6704522,
+            37.38
+          ],
+          [
+            126.6704522,
+            37.3802698
+          ]
+        ]
+      },
+      "properties": {
+        "id": "BD",
+        "from_node": "B",
+        "to_node": "D",
+        "surface": "concrete",
+        "source": "survey",
+        "note": "B→D 15% 오르막. 휠체어 기본 한도(약 14.1%) 초과",
+        "slope_pct": 15.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            126.67,
+            37.38
+          ],
+          [
+            126.67,
+            37.3805396
+          ]
+        ]
+      },
+      "properties": {
+        "id": "AE",
+        "from_node": "A",
+        "to_node": "E",
+        "surface": "asphalt",
+        "source": "survey",
+        "note": "완만한 오르막",
+        "slope_pct": 3.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            126.67,
+            37.3805396
+          ],
+          [
+            126.6704522,
+            37.3805396
+          ]
+        ]
+      },
+      "properties": {
+        "id": "EC",
+        "from_node": "E",
+        "to_node": "C",
+        "surface": "block",
+        "source": "unknown",
+        "note": "경사 미측정 구간"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            126.6704522,
+            37.3805396
+          ],
+          [
+            126.6704522,
+            37.3802698
+          ]
+        ]
+      },
+      "properties": {
+        "id": "CD",
+        "from_node": "C",
+        "to_node": "D",
+        "surface": "asphalt",
+        "source": "survey",
+        "note": "C→D 완만한 내리막",
+        "slope_pct": -2.0
+      }
+    }
+  ]
+}
