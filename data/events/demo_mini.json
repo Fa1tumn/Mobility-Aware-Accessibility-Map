@@ -1,0 +1,22 @@
+{
+  "graph": "tests/fixtures/routing_mini.geojson",
+  "profile": "default",
+  "start": "A",
+  "goal": "D",
+  "depart": "2026-11-21T10:00:00",
+  "steps": [
+    {
+      "at": "2026-11-21T10:00:20",
+      "position": "A",
+      "add": [{"type": "construction", "edge_id": "BD", "until": "2026-11-21T10:01:00", "note": "보수 공사"}]
+    },
+    {"at": "2026-11-21T10:00:50", "position": "A"},
+    {"at": "2026-11-21T10:01:10", "position": "A"},
+    {
+      "at": "2026-11-21T10:01:40",
+      "position": "B",
+      "add": [{"type": "parked_vehicle", "edge_id": "BD"}]
+    },
+    {"at": "2026-11-21T10:02:10", "position": "D"}
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "construction": {
+    "label": "공사·통제",
+    "ttl_min": null,
+    "block": ["*"]
+  },
+  "barricade": {
+    "label": "임시 설치물",
+    "ttl_min": 1440,
+    "block": ["wheelchair", "luggage"],
+    "penalty": {"*": 0.5}
+  },
+  "parked_vehicle": {
+    "label": "정차 차량·킥보드",
+    "ttl_min": 30,
+    "penalty": {"*": 0.0, "wheelchair": 2.0, "luggage": 0.5}
+  },
+  "crowd": {
+    "label": "혼잡",
+    "ttl_min": 10,
+    "record_only": true
+  }
+}

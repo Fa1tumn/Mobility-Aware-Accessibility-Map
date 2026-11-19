@@ -11,6 +11,10 @@
     python -m scripts.route --graph data/graph/test_area.geojson \
         --from N1 --to N6 --profile wheelchair --explain
 
+    # 수동 이벤트 반영 (기준 시각은 --when, 없으면 현재 시각)
+    python -m scripts.route --graph data/graph/test_area.geojson \
+        --from N1 --to N6 --events data/events/events.json --explain
+
 좌표가 없는 9월 형식은 --nodes/--edges로 읽는다.
 """
 
@@ -22,6 +26,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from app.events.overlay import EventOverlay
+from app.events.store import EventStore
 from app.graph.loader import load_geojson, load_graph
 from app.graph.schema import SchemaError
 from app.profile.definitions import PRESETS, get
@@ -44,6 +50,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser.add_argument("--when", help="기준 시각 (예: 2026-11-21T10:00). 출입구 개방 시간에 사용")
     parser.add_argument("--schedule", type=Path, help="출입구 개방 시간 JSON")
     parser.add_argument("--out", type=Path, help="결과 GeoJSON 경로")
+    parser.add_argument("--events", type=Path, help="수동 이벤트 파일 (data/events/events.json)")
     parser.add_argument("--explain", action="store_true",
                         help="추천·최단·대안 경로와 선택 이유를 함께 출력")
     args = parser.parse_args(argv)
@@ -65,19 +72,27 @@ def main(argv=None) -> int:
         return 1
     when = datetime.fromisoformat(args.when) if args.when else None
     schedule = ScheduleBook.load(args.schedule) if args.schedule else None
+    events = None
+    if args.events:
+        try:
+            events = EventOverlay.from_store(EventStore(args.events),
+                                             when or datetime.now().replace(microsecond=0))
+        except (OSError, ValueError, json.JSONDecodeError) as error:
+            print(f"이벤트 오류: {error}", file=sys.stderr)
+            return 1
     profiles = list(PRESETS.values()) if args.profile == "all" else [get(args.profile)]
 
     exit_code = 0
     for profile in profiles:
         try:
-            result = find_route(graph, args.start, args.goal, profile, when, schedule)
+            result = find_route(graph, args.start, args.goal, profile, when, schedule, events=events)
         except KeyError as error:
             print(f"입력 오류: {error}", file=sys.stderr)
             return 1
-        collection = route_to_geojson(graph, result, profile, args.start, args.goal, when)
+        collection = route_to_geojson(graph, result, profile, args.start, args.goal, when, events)
         summary = collection["properties"]
         if args.explain:
-            options = route_options(graph, args.start, args.goal, profile, when, schedule)
+            options = route_options(graph, args.start, args.goal, profile, when, schedule, events=events)
             print(format_options(options, profile.name))
         else:
             print(f"[{profile.name}] {result.summary()}")

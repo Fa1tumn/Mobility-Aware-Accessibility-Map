@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Iterable, Sequence
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence
 
 from app.graph.schema import Edge
+
+if TYPE_CHECKING:
+    from app.events.overlay import EventOverlay
 from app.profile.cost import SLOPE_REASON_PCT
 from app.routing.evaluate import edge_label
 
@@ -32,13 +35,19 @@ class RouteMetrics:
     unknown_slope_m: float = 0.0
     stairs: int = 0
     steep: list[SteepSegment] = field(default_factory=list)
+    events: list[tuple[str, str]] = field(default_factory=list)   # (event_id, 종류 이름)
 
 
-def route_metrics(edges: Iterable[Edge]) -> RouteMetrics:
+def route_metrics(edges: Iterable[Edge], events: Optional["EventOverlay"] = None) -> RouteMetrics:
+    """events를 주면 경로 위 활성 이벤트도 센다(프로필과 무관하게 걸린 것 전부)."""
     m = RouteMetrics()
     for e in edges:
         m.distance_m += e.distance_m
         m.stairs += e.stairs
+        if events:
+            for ev in events.events_on(e.base_id):
+                if ev.event_id not in {i for i, _ in m.events}:
+                    m.events.append((ev.event_id, events.types[ev.type].label))
         if e.slope_pct is None:
             m.unknown_slope_m += e.distance_m
             continue

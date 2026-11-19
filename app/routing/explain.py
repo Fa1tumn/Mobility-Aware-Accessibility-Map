@@ -49,4 +49,13 @@ def explain(chosen: RouteMetrics, other: RouteMetrics) -> list[str]:
         out.append(f"경사 미측정 {u:.0f}m 포함")
     elif u <= -DISTANCE_EPS_M:
         out.append(f"경사 미측정 {-u:.0f}m 적음")
+
+    mine_ev = {i for i, _ in chosen.events}
+    theirs_ev = {i for i, _ in other.events}
+    for event_id, label in other.events:
+        if event_id not in mine_ev:
+            out.append(f"{label} 구간 회피 ({event_id})")
+    for event_id, label in chosen.events:
+        if event_id not in theirs_ev:
+            out.append(f"{label} 구간 지남 ({event_id})")
     return out

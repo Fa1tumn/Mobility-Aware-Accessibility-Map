@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from app.graph.schema import Graph
 from app.profile.definitions import Profile
@@ -24,6 +24,9 @@ from app.routing.evaluate import evaluate_path
 from app.routing.explain import explain
 from app.routing.metrics import RouteMetrics, overlap_ratio, route_metrics
 from app.schedule.resolver import ScheduleBook
+
+if TYPE_CHECKING:
+    from app.events.overlay import EventOverlay
 
 # 거리만 보는 기준 프로필. 계단·문턱·경사·통행폭 제약이 모두 꺼져 있다.
 SHORTEST = Profile(name="shortest")
@@ -63,20 +66,23 @@ def route_options(
     k: int = 3,
     max_extra: float = ALT_MAX_EXTRA,
     max_overlap: float = ALT_MAX_OVERLAP,
+    events: Optional["EventOverlay"] = None,
 ) -> list[RouteOption]:
+    """events를 주면 추천·대안은 이벤트를 반영해 찾고, 최단은 거리만으로 찾은 뒤
+    이벤트까지 넣어 다시 판정한다("최단 경로는 공사 통제로 통행 불가")."""
     options: list[RouteOption] = []
-    rec = find_route(graph, start, goal, profile, when, schedule)
+    rec = find_route(graph, start, goal, profile, when, schedule, events=events)
     short = find_route(graph, start, goal, SHORTEST)
 
     rec_opt: Optional[RouteOption] = None
     if rec.found:
-        rec_opt = RouteOption("추천", rec, route_metrics(rec.edges), passable=True,
+        rec_opt = RouteOption("추천", rec, route_metrics(rec.edges, events), passable=True,
                               is_shortest=short.found and _same(rec, short))
         options.append(rec_opt)
 
     if short.found and not (rec_opt and rec_opt.is_shortest):
-        chk = evaluate_path(short.edges, profile, when, schedule)
-        sm = route_metrics(short.edges)
+        chk = evaluate_path(short.edges, profile, when, schedule, events)
+        sm = route_metrics(short.edges, events)
         options.append(RouteOption(
             "최단", replace(short, total_cost=chk.cost, reasons=chk.reasons), sm,
             passable=chk.passable, blocked=chk.blocked,
@@ -93,17 +99,17 @@ def route_options(
     for _ in range(k * ALT_TRIES_PER_OPTION):
         for edge_id in penalized:
             scale[edge_id] = scale.get(edge_id, 1.0) * ALT_FACTOR
-        cand = find_route(graph, start, goal, profile, when, schedule, cost_scale=scale)
+        cand = find_route(graph, start, goal, profile, when, schedule, cost_scale=scale, events=events)
         if not cand.found:
             break
         penalized |= {e.base_id for e in cand.edges}
         if any(overlap_ratio(cand.edges, o.result.edges) > max_overlap for o in options):
             continue
-        chk = evaluate_path(cand.edges, profile, when, schedule)
+        chk = evaluate_path(cand.edges, profile, when, schedule, events)
         if not chk.passable or chk.cost > rec.total_cost * (1.0 + max_extra):
             continue
         found += 1
-        m = route_metrics(cand.edges)
+        m = route_metrics(cand.edges, events)
         options.append(RouteOption(
             f"대안 {found}", replace(cand, total_cost=chk.cost, reasons=chk.reasons), m,
             passable=True, why=explain(m, rec_opt.metrics)))

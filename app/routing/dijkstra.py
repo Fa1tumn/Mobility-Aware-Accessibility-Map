@@ -9,7 +9,7 @@ from __future__ import annotations
 import heapq
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from app.graph.schema import Graph, Edge
 from app.profile import cost as cost_mod
@@ -18,6 +18,9 @@ from app.profile import feasibility as feas_mod
 INF = float("inf")
 from app.profile.definitions import Profile
 from app.schedule.resolver import ScheduleBook
+
+if TYPE_CHECKING:
+    from app.events.overlay import EventOverlay
 
 
 @dataclass
@@ -48,10 +51,14 @@ def find_route(
     when: Optional[datetime] = None,
     schedule: Optional[ScheduleBook] = None,
     cost_scale: Optional[dict[str, float]] = None,
+    events: Optional["EventOverlay"] = None,
 ) -> RouteResult:
     """cost_scale: 간선 ID(역방향 포함 원래 ID) → 비용 배율. 대안 경로를 찾을 때
     이미 쓴 간선의 비용을 부풀리는 용도다. 돌려주는 total_cost에도 배율이 들어가므로
-    실제 비용은 app.routing.evaluate.evaluate_path로 다시 계산한다."""
+    실제 비용은 app.routing.evaluate.evaluate_path로 다시 계산한다.
+
+    events: 특정 시각의 활성 이벤트(app.events.overlay.EventOverlay). 막는 이벤트가
+    걸린 간선은 확장하지 않고, 비용 이벤트는 간선 비용에 더한다."""
     if start not in graph.nodes:
         raise KeyError(f"출발 노드 '{start}' 없음")
     if goal not in graph.nodes:
@@ -76,9 +83,15 @@ def find_route(
             if not f.passable:
                 blocked.append(f"{e.from_node}→{e.to_node}: {f.reasons[0]}")
                 continue
+            eff = events.effect(e.base_id, profile) if events else None
+            if eff and eff.block:
+                blocked.append(f"{e.from_node}→{e.to_node}: {eff.block_reasons[0]}")
+                continue
             c = cost_mod.compute(e, profile).value
             if cost_scale:
                 c *= cost_scale.get(e.base_id, 1.0)
+            if eff:
+                c += eff.penalty
             nd = d + c
             if nd < dist.get(e.to_node, INF):
                 dist[e.to_node] = nd
@@ -107,6 +120,9 @@ def find_route(
     for e in path_edges:
         total_d += e.distance_m
         for pr in cost_mod.compute(e, profile).reasons:
+            reasons.append(f"{e.from_node}→{e.to_node}: {pr}")
+        eff = events.effect(e.base_id, profile) if events else None
+        for pr in (eff.reasons if eff else ()):
             reasons.append(f"{e.from_node}→{e.to_node}: {pr}")
 
     return RouteResult(

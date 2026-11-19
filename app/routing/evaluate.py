@@ -10,13 +10,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Iterable, Optional
+from typing import TYPE_CHECKING, Iterable, Optional
 
 from app.graph.schema import Edge
 from app.profile import cost as cost_mod
 from app.profile import feasibility as feas_mod
 from app.profile.definitions import Profile
 from app.schedule.resolver import ScheduleBook
+
+if TYPE_CHECKING:
+    from app.events.overlay import EventOverlay
 
 INF = float("inf")
 
@@ -39,17 +42,23 @@ def evaluate_path(
     profile: Profile,
     when: Optional[datetime] = None,
     schedule: Optional[ScheduleBook] = None,
+    events: Optional["EventOverlay"] = None,
 ) -> PathCheck:
     blocked: list[str] = []
     reasons: list[str] = []
     total = 0.0
     for e in edges:
         f = feas_mod.check(e, profile, when, schedule)
-        if not f.passable:
+        eff = events.effect(e.base_id, profile) if events else None
+        if not f.passable or (eff and eff.block):
             blocked.extend(f"{edge_label(e)}: {r}" for r in f.reasons)
+            if eff and eff.block:
+                blocked.extend(f"{edge_label(e)}: {r}" for r in eff.block_reasons)
             continue
         c = cost_mod.compute(e, profile)
-        total += c.value
+        total += c.value + (eff.penalty if eff else 0.0)
         reasons.extend(f"{edge_label(e)}: {r}" for r in c.reasons)
+        if eff:
+            reasons.extend(f"{edge_label(e)}: {r}" for r in eff.reasons)
     return PathCheck(passable=not blocked, cost=INF if blocked else total,
                      blocked=blocked, reasons=reasons)
