@@ -1,0 +1,34 @@
+{
+  "entrances": [
+    {
+      "id": "underwood_ground_west",
+      "name": "언더우드기념도서관 지상 서편 출입구",
+      "building": "언더우드기념도서관",
+      "hours": {
+        "monday": ["09:00-18:00"], "tuesday": ["09:00-18:00"],
+        "wednesday": ["09:00-18:00"], "thursday": ["09:00-18:00"],
+        "friday": ["09:00-18:00"], "saturday": ["09:00-13:00"],
+        "sunday": []
+      },
+      "wheelchair_accessible": true,
+      "threshold_cm": 1.5,
+      "verified_at": "2026-09-28",
+      "source": "현장 게시물 촬영 (예시값 — 실제 확인 필요)"
+    },
+    {
+      "id": "underwood_underground",
+      "name": "지하 연결통로",
+      "building": "언더우드기념도서관",
+      "hours": {
+        "monday": ["06:00-23:59"], "tuesday": ["06:00-23:59"],
+        "wednesday": ["06:00-23:59"], "thursday": ["06:00-23:59"],
+        "friday": ["06:00-23:59"], "saturday": ["06:00-23:59"],
+        "sunday": ["06:00-23:59"]
+      },
+      "wheelchair_accessible": true,
+      "threshold_cm": 0.0,
+      "verified_at": "2026-09-28",
+      "source": "예시값 — 실제 확인 필요"
+    }
+  ]
+}

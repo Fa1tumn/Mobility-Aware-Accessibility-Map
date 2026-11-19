@@ -205,6 +205,23 @@ python -m pytest tests/test_grid.py tests/test_grid_map.py tests/test_supabase_r
 
 현재 저장소는 초기 개발 단계입니다. DeepLabV3+ 추론 코드와 기본 YOLO 추론 코드는 실행할 수 있으며, 나머지 여러 모듈은 아직 구현 전의 기본 구조만 포함하고 있습니다.
 
+## 경로 탐색 (프로필별 경로)
+
+9월 PoC의 경로 엔진을 `app/graph`, `app/profile`, `app/routing`, `app/schedule`로 옮겼습니다.
+좌표가 있는 보행로 graph(GeoJSON)를 읽어 출발·도착·프로필별 경로를 계산하고, 결과를 지도에
+그릴 수 있는 GeoJSON으로 저장합니다. 경사 단위는 `%`이며 부호는 간선 방향 기준입니다.
+
+```bash
+python -m scripts.route --graph tests/fixtures/routing_mini.geojson \
+    --from A --to D --profile all --out output/route/route.geojson
+python -m scripts.demo_route                       # 9월 Hero 데모 (좌표 없는 6노드 graph)
+python -m pytest tests/test_routing_requirements.py tests/test_routing_geojson.py
+```
+
+- graph 형식, 단위, 출력 필드: [docs/routing-data-contract.md](docs/routing-data-contract.md)
+- 엔진 설계와 9월 검증 내용: [docs/routing-engine.md](docs/routing-engine.md)
+- `tests/fixtures/routing_mini.geojson`은 시험용 합성 graph입니다. 실험 구역 graph는 실측 후 `data/graph/`에 둡니다.
+
 ## 프로젝트 구조
 
 ```text
