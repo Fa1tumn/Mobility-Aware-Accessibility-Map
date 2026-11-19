@@ -47,7 +47,11 @@ def find_route(
     profile: Profile,
     when: Optional[datetime] = None,
     schedule: Optional[ScheduleBook] = None,
+    cost_scale: Optional[dict[str, float]] = None,
 ) -> RouteResult:
+    """cost_scale: 간선 ID(역방향 포함 원래 ID) → 비용 배율. 대안 경로를 찾을 때
+    이미 쓴 간선의 비용을 부풀리는 용도다. 돌려주는 total_cost에도 배율이 들어가므로
+    실제 비용은 app.routing.evaluate.evaluate_path로 다시 계산한다."""
     if start not in graph.nodes:
         raise KeyError(f"출발 노드 '{start}' 없음")
     if goal not in graph.nodes:
@@ -72,7 +76,10 @@ def find_route(
             if not f.passable:
                 blocked.append(f"{e.from_node}→{e.to_node}: {f.reasons[0]}")
                 continue
-            nd = d + cost_mod.compute(e, profile).value
+            c = cost_mod.compute(e, profile).value
+            if cost_scale:
+                c *= cost_scale.get(e.base_id, 1.0)
+            nd = d + c
             if nd < dist.get(e.to_node, INF):
                 dist[e.to_node] = nd
                 prev[e.to_node] = (u, e)

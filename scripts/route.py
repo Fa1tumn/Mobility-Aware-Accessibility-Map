@@ -7,6 +7,10 @@
     python -m scripts.route --graph data/graph/test_area.geojson \
         --from N1 --to N6 --profile all --out output/route/route.geojson
 
+    # 추천·최단·대안 경로와 선택 이유
+    python -m scripts.route --graph data/graph/test_area.geojson \
+        --from N1 --to N6 --profile wheelchair --explain
+
 좌표가 없는 9월 형식은 --nodes/--edges로 읽는다.
 """
 
@@ -21,6 +25,7 @@ from pathlib import Path
 from app.graph.loader import load_geojson, load_graph
 from app.graph.schema import SchemaError
 from app.profile.definitions import PRESETS, get
+from app.routing.alternatives import format_options, route_options
 from app.routing.dijkstra import find_route
 from app.routing.geojson import route_to_geojson
 from app.schedule.resolver import ScheduleBook
@@ -39,6 +44,8 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser.add_argument("--when", help="기준 시각 (예: 2026-11-21T10:00). 출입구 개방 시간에 사용")
     parser.add_argument("--schedule", type=Path, help="출입구 개방 시간 JSON")
     parser.add_argument("--out", type=Path, help="결과 GeoJSON 경로")
+    parser.add_argument("--explain", action="store_true",
+                        help="추천·최단·대안 경로와 선택 이유를 함께 출력")
     args = parser.parse_args(argv)
     if bool(args.graph) == bool(args.nodes or args.edges):
         parser.error("--graph 하나만, 또는 --nodes와 --edges를 함께 지정하세요")
@@ -69,14 +76,18 @@ def main(argv=None) -> int:
             return 1
         collection = route_to_geojson(graph, result, profile, args.start, args.goal, when)
         summary = collection["properties"]
-        print(f"[{profile.name}] {result.summary()}")
-        if result.found:
-            print(f"  최대 오르막 {summary['max_uphill_pct']:.1f}% · "
-                  f"최대 내리막 {summary['max_downhill_pct']:.1f}% · "
-                  f"경사 미측정 {summary['unknown_slope_m']:.0f}m")
-            for reason in result.reasons[:5]:
-                print(f"  · {reason}")
+        if args.explain:
+            options = route_options(graph, args.start, args.goal, profile, when, schedule)
+            print(format_options(options, profile.name))
         else:
+            print(f"[{profile.name}] {result.summary()}")
+            if result.found:
+                print(f"  최대 오르막 {summary['max_uphill_pct']:.1f}% · "
+                      f"최대 내리막 {summary['max_downhill_pct']:.1f}% · "
+                      f"경사 미측정 {summary['unknown_slope_m']:.0f}m")
+                for reason in result.reasons[:5]:
+                    print(f"  · {reason}")
+        if not result.found:
             exit_code = 2
         if args.out:
             out = args.out
