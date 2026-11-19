@@ -112,6 +112,9 @@ event
    이벤트 효과에 프로필별 계수.
 
 **이번 주 범위:** 수동 이벤트의 생성·만료·재탐색까지. 카메라 후보는 표시만.
+→ 구현과 확정 규칙: [route-choice-and-events.md](route-choice-and-events.md).
+종류 설정은 `config/events.json`(공사·통제, 임시 설치물, 정차 차량·킥보드, 혼잡)이고,
+이벤트는 간선 전체에 양방향으로 적용한다.
 
 ## 4. 네비게이션 알고리즘
 
@@ -138,11 +141,11 @@ cost(arc) = L/100 × [ w_distance
 
 | 기능 | 방법 |
 |---|---|
-| 기본 | A*. 휴리스틱 = 직선거리/100 × w_distance(비용 하한이라 최적 보장) |
+| 기본 | 지금은 다익스트라. A*는 나중(휴리스틱 = 직선거리/100 × w_distance, 비용 하한이라 최적 보장) |
 | 출발·도착 | 현재 GPS를 가장 가까운 간선에 투영, 임시 노드 삽입 |
 | 시간 의존 | 출입구 개방을 출발 시각이 아니라 그 간선 도착 예상 시각으로 판단(보행 1.2, 휠체어 0.9 m/s) |
-| 대안 | 최단거리 + 프로필 최적 항상 계산. 추가 대안은 "쓴 간선 ×1.5 후 재탐색" |
-| 선택 이유 | 두 경로 차이 설명. "계단 22단 회피, 10% 오르막 회피, +82m" |
+| 대안 | 추천(프로필 최적) + 최단(거리만) 항상 계산. 추가 대안은 "쓴 간선 ×1.5 후 재탐색", 최대 3개, 추천보다 30% 넘게 비싸거나 80% 넘게 겹치면 버림 |
+| 선택 이유 | 요약값 차이로 설명. "60m 더 걸음 · 오르막 15.0% 1곳 회피 · 경사 미측정 40m 포함" |
 | 불확실성 | 미측정 거리 표시. 신중 모드는 미측정 경사를 주변 최댓값으로 가정 |
 
 ### 실시간 안내 루프 (L7)
@@ -154,7 +157,7 @@ cost(arc) = L/100 × [ w_distance
   2. 이탈: 경로까지 거리 > max(15m, 2×GPS 정확도)가 2회 연속 → 재탐색
   3. 안내: 30° 이상 분기 회전, 경사 20m 전 "오르막 7%, 15m", 노면 변화, 앞 이벤트
   4. 이벤트 확인(30초): 남은 경로에 차단 → 재탐색. 가중 이벤트는 새 비용 10%+
-     개선 시만 교체(경로 떨림 방지)
+     개선 시만 교체(경로 떨림 방지) → app/nav/reroute.py check_reroute()
   5. 도착: 목적지 10m 안
 ```
 
@@ -165,22 +168,27 @@ cost(arc) = L/100 × [ w_distance
 
 | 레이어 | 파일 | 상태 |
 |---|---|---|
-| graph·엔진 | `app/graph`, `app/profile`, `app/routing`, `app/schedule` | PR #1 |
+| graph·엔진 | `app/graph`, `app/profile`, `app/routing`, `app/schedule` | 완료 (PR #1) |
 | L1 | `app/ingest/sessions.py` | 새로 |
 | L2 | `app/matching/nearest.py` → `hmm.py` | 새로 |
 | L3 | `app/state/aggregate.py`, `app/state/ramps.py` | 새로 |
-| L4 | `app/events/model.py`, `lifecycle.py`, `projector.py` | 새로 |
-| L5 | `app/profile/cost.py` 오르막·내리막 분리 | 수정 |
-| L6 | `app/routing/astar.py`, `alternatives.py`, `explain.py` | 새로 |
-| L7 | `app/nav/tracker.py`, `maneuvers.py` | 새로 |
-| 실행 | `scripts/build_state.py` → `scripts/route.py` → `scripts/serve_nav.py` | route만 있음 |
-| 데이터 | `data/graph/test_area.geojson`, `data/state/edge_state_<날짜>.json`, `config/profiles.json`, `config/events.json` | 새로 |
+| L4 | `app/events/model.py`, `store.py`, `overlay.py` (수동 이벤트) | 완료 |
+| L4 | `app/events/projector.py` (카메라 객체 → 간선) | 새로 |
+| L5 | `app/profile/cost.py` 오르막·내리막 분리 | 완료 (PR #2) |
+| L6 | `app/routing/alternatives.py`, `explain.py`, `metrics.py`, `evaluate.py` | 완료 |
+| L6 | `app/routing/astar.py` | 나중 |
+| L7 | `app/nav/reroute.py` (재탐색 판단) | 완료 |
+| L7 | `app/nav/tracker.py`, `maneuvers.py` (위치 추적, 안내 문구) | 새로 |
+| 실행 | `scripts/route.py`(`--explain`, `--events`), `scripts/events.py`, `scripts/event_demo.py` | 완료 |
+| 실행 | `scripts/build_state.py`, `scripts/serve_nav.py` | 새로 |
+| 데이터 | `config/events.json`, `data/events/demo_mini.json` | 완료 |
+| 데이터 | `data/graph/test_area.geojson`, `data/state/edge_state_<날짜>.json`, `config/profiles.json` | 새로 |
 
 ## 6. 토요일까지와 그 이후
 
-| 토요일 데모 | 이후 |
-|---|---|
-| 실험 구역 graph, 1차 매칭, 간선 경사 상태, 경사 구간 분할 | HMM 매칭 |
-| 오르막·내리막 분리 비용, A*, 선택 이유 | 시간 의존 탐색, 대안 경로 k개 |
-| 수동 이벤트 + 유효시간 + 재탐색 | 카메라 이벤트 위치 추정, 부재 관측 |
-| 웹 경로 화면 + 기록 재생 네비게이션 | 폰 실시간 안내 |
+| 토요일 데모 | 상태 | 이후 |
+|---|---|---|
+| 실험 구역 graph, 1차 매칭, 간선 경사 상태, 경사 구간 분할 | 진행 중 | HMM 매칭 |
+| 오르막·내리막 분리 비용, 선택 이유, 대안 경로 | 완료 (A*는 이후) | 시간 의존 탐색, A* |
+| 수동 이벤트 + 유효시간 + 재탐색 | 완료 | 카메라 이벤트 위치 추정, 부재 관측 |
+| 웹 경로 화면 + 기록 재생 네비게이션 | 시작 전 | 폰 실시간 안내 |

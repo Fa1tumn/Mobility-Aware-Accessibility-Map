@@ -71,8 +71,14 @@ strict = WHEELCHAIR.with_overrides(max_slope_pct=RAMP_LIMIT_PCT)
 
 | 위치 | 필드 |
 |---|---|
-| 최상위 `properties` | `profile`, `found`, `start`, `goal`, `when`, `node_path`, `total_distance_m`, `total_cost`, `unknown_slope_m`, `max_uphill_pct`, `max_downhill_pct`, `blocked` |
-| 피처 `properties` | `seq`, `edge_id`, `reverse`, `from_node`, `to_node`, `distance_m`, `slope_pct`(진행 방향 기준), `surface`, `stairs`, `cost`, `reasons` |
+| 최상위 `properties` | `profile`, `found`, `start`, `goal`, `when`, `node_path`, `total_distance_m`, `total_cost`, `unknown_slope_m`, `max_uphill_pct`, `max_downhill_pct`, `blocked`, `event_ids` |
+| 피처 `properties` | `seq`, `edge_id`, `reverse`, `from_node`, `to_node`, `distance_m`, `slope_pct`(진행 방향 기준), `surface`, `stairs`, `cost`, `reasons`, `events` |
+
+- `--events`로 이벤트 파일을 주면 `cost`에 이벤트 추가 비용이 들어가고, `reasons`와 `events`에
+  `정차 차량·킥보드 E001 (10:30까지)` 같은 표기가 들어간다. 이벤트가 없으면 `events`·`event_ids`는 빈 목록이다.
+- `scripts/event_demo.py --out-dir`의 단계별 파일은 최상위에 `action`(keep · reroute · no_route · arrived)과
+  `decision_reasons`가 더 붙는다.
+- 이벤트 형식과 규칙: [route-choice-and-events.md](route-choice-and-events.md)
 
 ```bash
 python -m scripts.route --graph tests/fixtures/routing_mini.geojson \
