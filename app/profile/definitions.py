@@ -13,12 +13,29 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, replace
 
 from app.graph.geo import deg_to_pct, pct_to_deg
 
 # 법규 참고 기준(경사로 기울기 1/12). 프로필 한도를 정할 때 참고값으로만 쓴다.
 RAMP_LIMIT_PCT = 100.0 / 12.0       # 8.33%
+
+
+def _validate_limit_pct(name: str, value: float | None) -> None:
+    """방향별 경사 한도(%). None(미지정)이거나 유한한 양수여야 한다."""
+    if value is None:
+        return
+    if not (math.isfinite(value) and value > 0.0):
+        raise ValueError(f"{name}는 0보다 큰 유한한 값이어야 한다 ({value!r})")
+
+
+def _validate_weight(name: str, value: float | None) -> None:
+    """방향별 경사 가중치. None(미지정)이거나 0 이상의 유한한 값이어야 한다."""
+    if value is None:
+        return
+    if not (math.isfinite(value) and value >= 0.0):
+        raise ValueError(f"{name}는 0 이상의 유한한 값이어야 한다 ({value!r})")
 
 
 @dataclass(frozen=True)
@@ -28,12 +45,18 @@ class Profile:
     # --- Hard constraint: 위반하면 통행 불가(INF) ---
     stairs_allowed: bool = True
     max_threshold_cm: float = 100.0
-    max_slope_deg: float = 90.0
+    max_slope_deg: float = 90.0          # 방향 구분 없는 단일 한도(호환용)
+    # 오르막/내리막 별도 한도(%). None이면 max_slope_deg를 양방향에 적용한다.
+    max_up_pct: float | None = None
+    max_down_pct: float | None = None
     min_width_level: str = "narrow"      # narrow < normal < wide
 
     # --- 가중치: 클수록 그 요소를 더 회피 ---
     w_distance: float = 1.0
-    w_slope: float = 0.0
+    w_slope: float = 0.0                 # 방향 구분 없는 선형 경사비용(호환용)
+    # 오르막/내리막 별도 가중치(제곱 비용). 둘 중 하나라도 지정되면 w_slope 대신 쓴다.
+    w_up: float | None = None
+    w_down: float | None = None
     w_surface: float = 0.0
     w_width: float = 0.0
     w_uncertainty: float = 0.0
@@ -42,18 +65,45 @@ class Profile:
     p_stairs_per_step: float = 0.0       # 계단 1단당
     p_threshold_per_cm: float = 0.0      # 문턱 1cm당
 
+    def __post_init__(self) -> None:
+        # 방향별 경사 한도는 유한한 양수만 허용(0·음수·NaN 거부).
+        _validate_limit_pct("max_up_pct", self.max_up_pct)
+        _validate_limit_pct("max_down_pct", self.max_down_pct)
+        # 방향별 가중치는 0 이상(음수·NaN·무한대 거부).
+        _validate_weight("w_up", self.w_up)
+        _validate_weight("w_down", self.w_down)
+
     def with_overrides(self, **kw) -> "Profile":
-        """사용자가 값을 바꾼 프로파일을 만든다. max_slope_pct로 경사 한도를 줄 수 있다."""
+        """사용자가 값을 바꾼 프로파일을 만든다. max_slope_pct로 경사 한도를 줄 수 있다.
+
+        max_up_pct / max_down_pct는 그대로 받는다(방향별 한도). 방향 한도가
+        없으면 uphill_limit_pct / downhill_limit_pct가 max_slope_pct로 폴백한다.
+        """
         if "max_slope_pct" in kw:
             kw["max_slope_deg"] = pct_to_deg(kw.pop("max_slope_pct"))
         return replace(self, **kw)
 
     @property
     def max_slope_pct(self) -> float:
-        """경사 한도(%). 90°(제한 없음)는 무한대로 본다."""
+        """방향 구분 없는 경사 한도(%). 90°(제한 없음)는 무한대로 본다."""
         if self.max_slope_deg >= 90.0:
             return float("inf")
         return deg_to_pct(self.max_slope_deg)
+
+    @property
+    def uphill_limit_pct(self) -> float:
+        """오르막 한도(%). max_up_pct가 없으면 방향 구분 없는 한도로 폴백한다."""
+        return self.max_up_pct if self.max_up_pct is not None else self.max_slope_pct
+
+    @property
+    def downhill_limit_pct(self) -> float:
+        """내리막 한도(%). max_down_pct가 없으면 방향 구분 없는 한도로 폴백한다."""
+        return self.max_down_pct if self.max_down_pct is not None else self.max_slope_pct
+
+    @property
+    def uses_directional_slope_cost(self) -> bool:
+        """오르막/내리막 분리 비용을 쓰는지. w_up·w_down 중 하나라도 지정되면 True."""
+        return self.w_up is not None or self.w_down is not None
 
 
 WIDTH_RANK = {"narrow": 0, "normal": 1, "wide": 2, "unknown": 1}

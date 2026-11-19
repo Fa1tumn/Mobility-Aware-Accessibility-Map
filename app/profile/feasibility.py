@@ -36,11 +36,16 @@ def check(
         reasons.append(
             f"문턱 {edge.threshold_cm:.1f}cm > 허용 {profile.max_threshold_cm:.1f}cm")
 
-    s = edge.abs_slope_deg
-    if s is not None and s > profile.max_slope_deg:
-        direction = "오르막" if edge.is_uphill else "내리막"
-        reasons.append(
-            f"{direction} 경사 {edge.abs_slope_pct:.1f}% > 허용 {profile.max_slope_pct:.1f}%")
+    # 경사 한도는 방향별로 본다. 프로필에 방향 한도가 없으면
+    # uphill_limit_pct / downhill_limit_pct가 max_slope_pct로 폴백한다.
+    if edge.abs_slope_pct is not None:
+        if edge.is_uphill:
+            limit_pct, direction = profile.uphill_limit_pct, "오르막"
+        else:
+            limit_pct, direction = profile.downhill_limit_pct, "내리막"
+        if edge.abs_slope_pct > limit_pct:
+            reasons.append(
+                f"{direction} 경사 {edge.abs_slope_pct:.1f}% > 허용 {limit_pct:.1f}%")
 
     if WIDTH_RANK[edge.width_level] < WIDTH_RANK[profile.min_width_level]:
         reasons.append(f"통행폭 {edge.width_level} (최소 {profile.min_width_level})")
