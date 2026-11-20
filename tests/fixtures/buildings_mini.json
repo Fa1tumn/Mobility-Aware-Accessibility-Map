@@ -1,0 +1,27 @@
+{
+  "buildings": [
+    {
+      "id": "student_hall",
+      "name": "학생회관",
+      "entrances": [
+        "S1"
+      ]
+    },
+    {
+      "id": "library",
+      "name": "도서관",
+      "entrances": [
+        "L1",
+        "L2",
+        "L3"
+      ]
+    },
+    {
+      "id": "engineering",
+      "name": "공학관",
+      "entrances": [
+        "E1"
+      ]
+    }
+  ]
+}
