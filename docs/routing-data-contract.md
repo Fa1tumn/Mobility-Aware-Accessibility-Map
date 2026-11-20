@@ -56,8 +56,10 @@
 | 휠체어 프리셋 `max_slope_deg = 8.0` | 9월 값 그대로. **약 14.1%로 1/12보다 느슨하다** |
 
 9월 답사에서 캠퍼스 경사로가 약 -6°(약 10.5%)로 기록됐다. 1/12를 그대로 적용하면
-데모 graph의 휠체어 경로가 모두 막히므로 프리셋은 바꾸지 않았다. 실측 후 팀이
-정해서 설정으로 바꾼다.
+9월 데모 graph(`data/routing_demo`)의 휠체어 경로가 모두 막히므로 프리셋은 바꾸지 않았다.
+
+11/19 실측에서는 실험 구역 경사로가 6% 안팎이었다(R1 +6.5%, 같은 경사로 왕복 평균 6.59%).
+이 값이면 1/12를 써도 막히지 않는다. 경사로를 더 재고 팀이 정해서 설정으로 바꾼다.
 
 ```python
 from app.profile.definitions import WHEELCHAIR, RAMP_LIMIT_PCT
@@ -84,3 +86,63 @@ strict = WHEELCHAIR.with_overrides(max_slope_pct=RAMP_LIMIT_PCT)
 python -m scripts.route --graph tests/fixtures/routing_mini.geojson \
     --from A --to D --profile all --out output/route/route.geojson
 ```
+
+## 출입구 운영 시간 (schedule JSON)
+
+간선의 `entrance_id`가 이 파일의 출입구 `id`를 가리킨다. 그 간선은 출입구가 열려 있을 때만 지날 수 있다.
+예시: `tests/fixtures/schedule_buildings.json`(시험용), `data/campus/schedule.json`(언더우드기념도서관).
+
+```json
+{
+  "periods": [
+    {"id": "semester", "label": "학기 중", "from": "2026-09-01", "to": "2026-12-18", "verified": false},
+    {"id": "vacation", "label": "방학 중", "from": "2026-12-19", "to": "2027-02-28", "verified": false}
+  ],
+  "holidays": ["2026-12-25"],
+  "entrances": [
+    {"id": "underwood_ground_stepfree", "name": "…", "building": "…",
+     "hours": {"semester": {"weekdays": ["09:00-18:00"], "sunday": ["12:00-18:00"]}, "vacation": {}},
+     "verified_at": "2026-11-20", "source": "…"}
+  ]
+}
+```
+
+| 규칙 | 내용 |
+|---|---|
+| 시간표 | 기간형(`{기간 ID: {요일: [구간]}}`) 또는 9월 요일형(`{요일: [구간]}`) |
+| 요일 키 | `monday`~`sunday`, 묶음 `weekdays`·`weekend`·`daily`, 공휴일 `holiday`. 개별 요일이 묶음보다 우선 |
+| 구간 | `"HH:MM-HH:MM"`, 끝 `24:00` 허용, 시작 > 끝이면 자정을 넘김. 끝 시각은 포함하지 않음 |
+| 닫힘으로 보는 경우 | 시간표에 없는 요일, 어느 기간에도 속하지 않는 날짜, `holiday` 키 없는 공휴일, 등록되지 않은 출입구 |
+| 기간 겹침 | `periods`에 먼저 적은 기간이 우선(시험기간을 학기보다 앞에) |
+| `verified: false` | 학사일정으로 확인하지 않은 날짜. 사유 문구에 "(기간 미확인)"이 붙음 |
+
+막힌 이유는 "출입 불가 — 도서관 지상 계단 없는 문: 학기 중 금요일 09:00-18:00 개방, 지금 19:00 닫힘"처럼 나온다.
+
+## 건물 (buildings JSON)
+
+출발·도착을 건물로 고를 때 쓴다. 건물 하나에 출입구 노드가 여러 개일 수 있다.
+예시: `tests/fixtures/buildings_mini.json`.
+
+```json
+{"buildings": [
+  {"id": "library", "name": "도서관", "entrances": ["L1", "L2", "L3"],
+   "point": [126.67, 37.38], "outline": [[126.67, 37.38], …], "note": ""}
+]}
+```
+
+- `entrances`는 graph의 노드 ID. 없는 노드, 두 건물에 겹친 출입구, 정의되지 않은 속성은 오류다.
+- `point`가 없으면 출입구 좌표 평균을 쓴다. `outline`은 지도 표시용(선택).
+- 운영 시간은 여기 적지 않는다. 출입구로 들어가는 간선의 `entrance_id`로 운영 시간 파일을 참조한다.
+- 노드 ID `@origin`, `@dest`는 건물 간 탐색의 가상 노드로 예약되어 있다.
+
+건물 간 경로는 출발 건물의 모든 출입구와 도착 건물의 모든 출입구 조합 중 비용이 가장 낮은 경로를
+한 번의 탐색으로 고른다. 경사·운영 시간·이벤트 때문에 A→B와 B→A는 따로 계산한다.
+
+```bash
+python -m scripts.building_route --graph tests/fixtures/routing_buildings.geojson \
+    --buildings tests/fixtures/buildings_mini.json --schedule tests/fixtures/schedule_buildings.json \
+    --from student_hall --to library --profile wheelchair --when 2026-11-20T19:00
+```
+
+`--out` 파일은 위 경로 결과 형식에 `origin_building`, `dest_building`, `from_entrance`, `to_entrance`,
+`why`, `entrance_notes`(쓸 수 없는 출입구와 이유)가 더 붙는다.
