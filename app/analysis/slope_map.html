@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>경사 지도</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;height:100vh;display:flex;flex-direction:column;font:14px "Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",Arial,sans-serif;color:#1B2433;background:#F5F7F9}
+header{padding:14px 20px;border-bottom:1px solid #D5DCE2;background:#FFFFFF;flex-shrink:0}
+h1{font-size:20px;margin:0 0 6px;color:#16324F}p{margin:4px 0;line-height:1.5}
+#summary{color:#5B6B7F;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:8px;font-size:13px;align-items:center}
+.controls .sep{width:1px;height:16px;background:#D5DCE2}
+#status{color:#5B6B7F;font-size:12px}
+.workspace{display:flex;flex:1;min-height:0}
+#map{flex:1;min-width:0;background:#E9EEF1}
+aside{width:420px;flex-shrink:0;display:flex;flex-direction:column;border-left:1px solid #D5DCE2;background:#FFFFFF;min-height:0;overflow:auto}
+section.box{padding:14px 16px;border-bottom:1px solid #EEF3F5}
+h2{font-size:15px;margin:0 0 8px;color:#16324F}
+.day{border:1px solid #D5DCE2;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:13px;line-height:1.6}
+.day b{color:#16324F}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:#16324F;color:#FFFFFF;font-weight:600;text-align:left;padding:6px}
+td{padding:6px;border-bottom:1px solid #EEF3F5}
+tr.ramp{cursor:pointer}tr.ramp:hover{background:#EEF3F5}tr.ramp.active{background:#E3F2F4}
+.up{color:#B4501C;font-weight:600}.down{color:#2457B8;font-weight:600}.over{color:#A86A00;font-weight:700}
+.note{font-size:12px;color:#5B6B7F;line-height:1.6}
+.legend{padding:10px 12px;background:#FFFFFF;border-radius:6px;box-shadow:0 1px 5px rgba(0,0,0,.25);font-size:12px;line-height:1.6}
+.bar{height:10px;width:180px;border-radius:2px}
+.ticks{display:flex;justify-content:space-between;width:180px;color:#5B6B7F}
+.ramp-label{background:#FFFFFF;border:2px solid #16324F;border-radius:10px;font:700 11px/16px Arial;text-align:center;color:#16324F}
+@media(max-width:900px){.workspace{flex-direction:column}#map{height:60vh;flex:none}aside{width:100%;border-left:0;border-top:1px solid #D5DCE2}}
+</style>
+</head>
+<body>
+<header>
+<h1 id="title"></h1>
+<p id="summary"></p>
+<div class="controls">
+<label><input type="checkbox" id="tiles" checked> 배경 지도</label>
+<label><input type="checkbox" id="showCells" checked> 격자 칸 (|경사| 평균)</label>
+<label><input type="checkbox" id="showPoints" checked> 관측점 (2초 창)</label>
+<label><input type="checkbox" id="showRamps" checked> 경사로 구간</label>
+<span class="sep"></span>
+<span id="dayToggles"></span>
+<span id="status"></span>
+</div>
+</header>
+<main class="workspace">
+<div id="map"></div>
+<aside>
+<section class="box"><h2>주행 기록</h2><div id="days"></div></section>
+<section class="box"><h2>찾은 경사로 구간</h2><table><thead><tr><th>날</th><th>#</th><th>방향</th><th>경사</th><th>길이</th><th>속도</th></tr></thead><tbody id="rampRows"></tbody></table>
+<p class="note" style="margin-top:8px">행을 누르면 지도에서 그 구간으로 이동합니다. 경사는 편향을 뺀 값, 길이는 GPS 경계 사이 거리입니다. <span class="over">진한 노랑</span>은 1/12(8.33%) 초과.</p></section>
+<section class="box"><h2>읽는 법</h2><p class="note">칸 색 = 그 칸에 들어온 2초 창의 편향 보정 경사 크기(|%|) 평균. 오르막·내리막을 모두 지난 칸이 0%로 보이지 않도록 크기로 평균합니다.<br>점 색 = 진행 방향 기준 경사 (주황 오르막, 파랑 내리막, 회색 평지).<br>선 = 변화율로 찾은 경사로 시작~끝 경계 사이 궤적.</p></section>
+</aside>
+</main>
+<script id="slope-data" type="application/json">__SLOPE_DATA__</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const data = JSON.parse(document.getElementById('slope-data').textContent);
+const fmt = (v, nd = 1, unit = '') => v === null || v === undefined ? '-' : Number(v).toFixed(nd) + unit;
+const visibleDays = new Set(data.days.map(d => d.id));
+document.getElementById('title').textContent = data.title;
+document.getElementById('summary').textContent =
+  '캠퍼스 방향 정사각형 격자 ' + fmt(data.cell_size_m, 1, 'm') + ' · 관측점 ' + data.points.length + '개 · 경사로 구간 ' + data.ramps.length + '개'
+  + (data.outside ? ' · 격자 밖 ' + data.outside + '개 제외' : '') + ' · 편향은 기록마다 따로 보정';
+
+function colorFor(v) {
+  const s = data.stops; if (v === null || !isFinite(v)) return '#a8adb4';
+  v = Math.max(0, v);
+  for (let k = 0; k < s.length - 1; k++) {
+    const [a, ca] = s[k], [b, cb] = s[k + 1];
+    if (v <= b) {
+      const f = b > a ? (v - a) / (b - a) : 0;
+      const p = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+      const A = p(ca), B = p(cb);
+      return '#' + A.map((x, i) => Math.round(x + (B[i] - x) * f).toString(16).padStart(2, '0')).join('');
+    }
+  }
+  return s[s.length - 1][1];
+}
+function pointColor(g) {
+  if (g >= 3) return '#C2551F'; if (g >= 1.5) return '#F0A06A';
+  if (g <= -3) return '#2457B8'; if (g <= -1.5) return '#7FA6F0';
+  return '#9AA5B1';
+}
+
+// 사이드바: 날짜 카드
+const dayBox = document.getElementById('days');
+const toggles = document.getElementById('dayToggles');
+for (const d of data.days) {
+  const card = document.createElement('div'); card.className = 'day';
+  card.innerHTML = '<b></b><br><span></span>';
+  card.querySelector('b').textContent = d.label + ' (' + d.start + '–' + d.end + ')';
+  card.querySelector('span').textContent = '2초 창 ' + d.samples + '개 · 편향 ' + (d.bias_pct >= 0 ? '+' : '') + fmt(d.bias_pct, 2, '%')
+    + ' · 경사로 ' + d.ramps + '구간 / ' + d.places + '곳 · 평지 속도 ' + fmt(d.speed_flat, 2, ' m/s');
+  dayBox.append(card);
+  const lab = document.createElement('label');
+  lab.innerHTML = '<input type="checkbox" checked> ';
+  lab.append(document.createTextNode(d.label));
+  lab.style.marginRight = '12px';
+  lab.querySelector('input').onchange = e => { e.target.checked ? visibleDays.add(d.id) : visibleDays.delete(d.id); redraw(); };
+  toggles.append(lab);
+}
+
+// 사이드바: 경사로 표
+const rows = document.getElementById('rampRows');
+const rowEls = [];
+data.ramps.forEach((r, k) => {
+  const tr = document.createElement('tr'); tr.className = 'ramp';
+  const cells = [data.days[r.day].label, r.idx, r.direction === 'up' ? '오르막' : '내리막',
+    (r.slope > 0 ? '+' : '') + fmt(r.slope, 1, '%'), fmt(r.length, 1, 'm'), fmt(r.speed, 2, '')];
+  cells.forEach((c, i) => { const td = document.createElement('td'); td.textContent = c; tr.append(td);
+    if (i === 2) td.className = r.direction === 'up' ? 'up' : 'down';
+    if (i === 3 && r.over_limit) td.className = 'over'; });
+  tr.onclick = () => focusRamp(k);
+  rows.append(tr); rowEls.push(tr);
+});
+
+let map = null, layers = {};
+let rampLines = [];
+function focusRamp(k) {
+  rowEls.forEach((tr, i) => tr.classList.toggle('active', i === k));
+  if (!map) return;
+  const line = rampLines[k];
+  if (line) { map.fitBounds(line.getBounds().pad(1.2)); line.openPopup(); }
+}
+
+function redraw() {
+  if (!map) return;
+  for (const name of ['cells', 'points', 'ramps']) layers[name].clearLayers();
+  // 칸: 보이는 날의 점으로 다시 집계
+  const agg = {};
+  for (const p of data.points) if (visibleDays.has(p.day)) {
+    const a = agg[p.grid_id] || (agg[p.grid_id] = {sum: 0, max: 0, n: 0, days: new Set()});
+    a.sum += Math.abs(p.g); a.max = Math.max(a.max, Math.abs(p.g)); a.n += 1; a.days.add(p.day);
+  }
+  for (const c of data.cells) {
+    const a = agg[c.grid_id]; if (!a) continue;
+    const mean = a.sum / a.n;
+    const poly = L.polygon(c.corners, {color: '#5B6B7F', weight: 0.6, fillColor: colorFor(mean), fillOpacity: 0.6});
+    poly.bindPopup('칸 G' + c.grid_id + '<br>|경사| 평균 ' + fmt(mean, 1, '%') + ' · 최대 ' + fmt(a.max, 1, '%')
+      + '<br>2초 창 ' + a.n + '개 · ' + [...a.days].map(d => data.days[d].label).join(', '));
+    layers.cells.addLayer(poly);
+  }
+  for (const p of data.points) if (visibleDays.has(p.day)) {
+    const m = L.circleMarker([p.lat, p.lon], {radius: 3.2, weight: 0, fillOpacity: 0.9, fillColor: pointColor(p.g)});
+    m.bindPopup(data.days[p.day].label + ' ' + p.time + '<br>경사 ' + (p.g > 0 ? '+' : '') + fmt(p.g, 1, '%')
+      + ' (원래 값 ' + fmt(p.raw, 1, '%') + ')<br>단계 ' + p.phase + ' · 칸 G' + p.grid_id);
+    layers.points.addLayer(m);
+  }
+  rampLines = [];
+  data.ramps.forEach((r, k) => {
+    if (!visibleDays.has(r.day)) { rampLines.push(null); return; }
+    const color = r.direction === 'up' ? '#C2551F' : '#2457B8';
+    if (r.over_limit) layers.ramps.addLayer(L.polyline(r.track, {color: '#A86A00', weight: 12, opacity: 0.45}));
+    const line = L.polyline(r.track, {color, weight: 6, opacity: 0.95});
+    line.bindPopup('<b>' + data.days[r.day].label + ' #' + r.idx + ' ' + (r.direction === 'up' ? '오르막' : '내리막') + ' '
+      + (r.slope > 0 ? '+' : '') + fmt(r.slope, 1, '%') + '</b>' + (r.over_limit ? ' (1/12 초과)' : '')
+      + '<br>' + r.start + '–' + r.end + ' · ' + fmt(r.duration, 0, 's') + ' · ' + fmt(r.length, 1, 'm')
+      + '<br>속도 ' + fmt(r.speed, 2, ' m/s') + ' · 높이 차 ' + fmt(r.rise, 2, 'm'));
+    layers.ramps.addLayer(line);
+    const start = r.track[0];
+    layers.ramps.addLayer(L.marker(start, {icon: L.divIcon({className: 'ramp-label', html: r.tag, iconSize: [40, 18], iconAnchor: [20, 9]})}));
+    rampLines.push(line);
+  });
+}
+
+if (typeof L === 'undefined') {
+  document.getElementById('status').textContent = '지도 라이브러리를 불러오지 못했습니다. 오른쪽 표는 그대로 볼 수 있습니다.';
+} else {
+  map = L.map('map', {preferCanvas: true, maxZoom: 22});
+  const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxNativeZoom: 19, maxZoom: 22,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'});
+  const tileToggle = document.getElementById('tiles');
+  if (location.protocol === 'file:') {
+    tileToggle.checked = false; tileToggle.disabled = true;
+    document.getElementById('status').textContent = '파일로 열면 배경 지도가 꺼집니다. Map 저장소에서 python -m scripts.open_grid <이 파일>로 열면 보입니다.';
+  } else {
+    tiles.addTo(map);
+  }
+  tiles.on('tileerror', () => { map.removeLayer(tiles); tileToggle.checked = false;
+    document.getElementById('status').textContent = '배경 지도를 불러오지 못했습니다. 격자·점·경사로는 그대로 보입니다.'; });
+  tileToggle.onchange = e => e.target.checked ? tiles.addTo(map) : map.removeLayer(tiles);
+  L.polygon(data.campus, {color: '#16324F', weight: 1.5, dashArray: '6 6', fill: false, interactive: false}).addTo(map);
+  layers.cells = L.layerGroup().addTo(map);
+  layers.points = L.layerGroup().addTo(map);
+  layers.ramps = L.layerGroup().addTo(map);
+  for (const [id, name] of [['showCells', 'cells'], ['showPoints', 'points'], ['showRamps', 'ramps']])
+    document.getElementById(id).onchange = e => e.target.checked ? layers[name].addTo(map) : map.removeLayer(layers[name]);
+  map.fitBounds(L.latLngBounds(data.bounds).pad(0.08));
+  redraw();
+  const legend = L.control({position: 'bottomleft'});
+  legend.onAdd = () => {
+    const div = L.DomUtil.create('div', 'legend');
+    const stops = data.stops.map(([v, c]) => c + ' ' + (v / 10 * 100).toFixed(1) + '%').join(',');
+    div.innerHTML = '<b>칸: |경사| 평균</b><div class="bar" style="background:linear-gradient(to right,' + stops + ')"></div>'
+      + '<div class="ticks"><span>0%</span><span>5%</span><span>10%+</span></div>'
+      + '<div>선: <span class="up">오르막</span> · <span class="down">내리막</span> · <span class="over">1/12 초과</span></div>';
+    return div;
+  };
+  legend.addTo(map);
+  window.addEventListener('resize', () => map.invalidateSize());
+}
+</script>
+</body>
+</html>
