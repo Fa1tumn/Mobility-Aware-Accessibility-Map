@@ -39,11 +39,15 @@ def select_latest_day(rows):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--size", type=float, default=0.0001)
+    sizing = parser.add_mutually_exclusive_group()
+    sizing.add_argument("--cell-size-m", type=float, help="캠퍼스 격자 한 변의 목표 길이(m)")
+    sizing.add_argument("--size", type=float, help="기존 격자 간격(도)")
     parser.add_argument("--field", choices=["weight", "ramp", "ave_vibration", "object"], default="ave_vibration")
     args = parser.parse_args()
-    if not math.isfinite(args.size) or args.size <= 0:
-        parser.error("--size는 유한한 양수여야 합니다.")
+    size_flag = "--size" if args.size is not None else "--cell-size-m"
+    size = args.size if args.size is not None else args.cell_size_m
+    if size is not None and (not math.isfinite(size) or size <= 0):
+        parser.error(f"{size_flag}는 유한한 양수여야 합니다.")
     try:
         rows = fetch_observations()
         latest_day, selected = select_latest_day(rows)
@@ -61,16 +65,14 @@ def main():
             )
         print(f"전체 {len(rows)}개 / 좌표 누락·오류 {len(unmapped)}개", flush=True)
         print(f"선택: {latest_day} (UTC), 유효한 좌표 {len(selected)}개", flush=True)
-        result = subprocess.run(
-            [
-                sys.executable, "-m", "scripts.test_grid",
-                "--input", str(data_dir / "supabase_latest_day_observations.json"),
-                "--size", str(args.size), "--field", args.field,
-                "--output", "output/grid/grid.png",
-            ],
-            cwd=ROOT,
-            check=False,
-        )
+        command = [
+            sys.executable, "-m", "scripts.test_grid",
+            "--input", str(data_dir / "supabase_latest_day_observations.json"),
+            "--field", args.field, "--output", "output/grid/grid.png",
+        ]
+        if size is not None:
+            command.extend((size_flag, str(size)))
+        result = subprocess.run(command, cwd=ROOT, check=False)
     except (ValueError, RuntimeError, KeyError, TypeError, OSError) as error:
         parser.exit(1, f"격자 갱신 실패: {error}\n")
     return result.returncode

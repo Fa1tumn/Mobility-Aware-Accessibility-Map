@@ -7,6 +7,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
 
 
@@ -31,10 +32,25 @@ def grid_values(result, field):
     return values, targets
 
 
+def grid_lines(result):
+    rows = [result.row_edge(i) for i in range(result.rows + 1)]
+    columns = [result.column_edge(j) for j in range(result.columns + 1)]
+    return [
+        [result.to_geographic(down, 0), result.to_geographic(down, result.map_width)]
+        for down in rows
+    ] + [
+        [result.to_geographic(0, across), result.to_geographic(result.map_length, across)]
+        for across in columns
+    ]
+
+
 def save_grid_image(result, output_path, title="Observation grid", field="weight"):
     values, targets = grid_values(result, field)
-    latitudes = np.maximum(result.north - np.arange(result.rows + 1) * result.size, result.south)
-    longitudes = np.minimum(result.west + np.arange(result.columns + 1) * result.size, result.east)
+    across, down = np.meshgrid(
+        [result.column_edge(j) for j in range(result.columns + 1)],
+        [result.row_edge(i) for i in range(result.rows + 1)],
+    )
+    latitudes, longitudes = result.to_geographic(down, across)
     empty = plt.get_cmap("Greys").copy()
     empty.set_bad("#ffffff")
     colors = plt.get_cmap("YlOrRd").copy()
@@ -49,11 +65,11 @@ def save_grid_image(result, output_path, title="Observation grid", field="weight
     axes[0].pcolormesh(longitudes, latitudes, np.ma.masked_invalid(targets), cmap=empty, vmin=0, vmax=1.6)
     axes[1].pcolormesh(longitudes, latitudes, np.ma.masked_invalid(targets), cmap=empty, vmin=0, vmax=1.6)
     image = axes[1].pcolormesh(longitudes, latitudes, masked, cmap=colors, norm=scale)
+    lines = np.asarray(grid_lines(result))[:, :, ::-1] if result.rows * result.columns <= 40000 else None
     for ax, subtitle in zip(axes, ("Target regions / ID", LABELS[field] + " per region")):
-        if result.rows * result.columns <= 40000:
+        if lines is not None:
             width = 0.8 if result.rows * result.columns <= 400 else 0.2
-            ax.vlines(longitudes, result.south, result.north, color="#707780", linewidth=width)
-            ax.hlines(latitudes, result.west, result.east, color="#707780", linewidth=width)
+            ax.add_collection(LineCollection(lines, colors="#707780", linewidths=width))
         ax.set_xlim(result.west, result.east)
         ax.set_ylim(result.south, result.north)
         ax.set_aspect(1 / np.cos(np.radians((result.north + result.south) / 2)))
@@ -94,7 +110,7 @@ def save_grid_map(result, output_path, title="Observation grid", field="weight")
     for (i, j), cell in result.grid.items():
         if cell["observation_count"]:
             color = "#a8adb4" if cell[field] is None else matplotlib.colors.to_hex(plt.get_cmap("YlOrRd")(scale(cell[field])))
-            cells.append({"row": i, "column": j, **result.get_cell_bounds(i, j), **cell, "color": color})
+            cells.append({"row": i, "column": j, **result.get_cell_geometry(i, j), **cell, "color": color})
     points = []
     for index, row in enumerate(result.observations):
         i, j = result.get_grid(row["latitude"], row["longitude"])
@@ -122,9 +138,10 @@ def save_grid_map(result, output_path, title="Observation grid", field="weight")
         "columns": result.columns,
         "low": low,
         "high": high,
+        "lines": grid_lines(result),
         "cells": cells,
         "points": points,
-        "simulated": all(row.get("is_simulated") is True for row in result.observations),
+        "simulated": bool(points) and all(row.get("is_simulated") is True for row in result.observations),
     }
     template = Path(__file__).with_name("grid_map.html").read_text(encoding="utf-8")
     data = json.dumps(payload, ensure_ascii=False, allow_nan=False).replace("<", "\\u003c")

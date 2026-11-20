@@ -1,9 +1,11 @@
+import json
 import math
 
 import pytest
 
 from app.map.gird import grid
-from app.map.grid_pipeline import build_grid, normalize_observation
+from app.map.campus_grid import CAMPUS_CONFIG, load_campus_grid
+from app.map.grid_pipeline import build_campus_grid, build_grid, normalize_observation
 
 
 def observation(**values):
@@ -146,3 +148,37 @@ def test_size_override_merges_regions(monkeypatch):
     assert larger.columns == 1
     assert larger.size == 0.001
     assert larger.grid[(0, 0)]["observation_count"] == 2
+
+
+def test_campus_top_edge_and_cells_follow_the_same_meter_coordinates():
+    result = load_campus_grid()
+    corners = result.get_cell_corners(0, 0)
+    assert corners[0] == result.map_left_top
+    assert corners[1][0] < corners[0][0] and corners[1][1] > corners[0][1]
+    top_right = json.loads(CAMPUS_CONFIG.read_text(encoding="utf-8"))["top_right"]
+    assert result.to_geographic(0, result.column_edge(result.columns)) == pytest.approx(top_right, abs=1e-10, rel=0)
+    for corner, expected in zip(corners, [(0, 0), (0, result.size), (result.size, result.size), (result.size, 0)]):
+        assert result.to_grid_offsets(*corner) == pytest.approx(expected, abs=1e-8)
+    assert result.get_grid(*corners[2]) == (1, 1)
+    assert result.get_grid(*result.map_right_bottom) == (result.rows - 1, result.columns - 1)
+    assert result.get_grid(37.3850579, 126.6711779)[0] == 0
+
+
+def test_campus_grid_id_stays_fixed_when_input_extent_changes():
+    reference = load_campus_grid()
+    latitude, longitude = reference.to_geographic(2.5 * reference.size, 3.5 * reference.size)
+    other_latitude, other_longitude = reference.to_geographic(15.5 * reference.size, 20.5 * reference.size)
+    shared = observation(latitude=latitude, longitude=longitude)
+    elsewhere = observation(latitude=other_latitude, longitude=other_longitude)
+    outside = observation(latitude=reference.north, longitude=reference.west)
+    invalid = observation(latitude=None)
+
+    first = build_campus_grid([shared])
+    second = build_campus_grid([elsewhere, shared, outside, invalid])
+    empty = build_campus_grid([outside])
+
+    assert first.grid[(2, 3)] == second.grid[(2, 3)]
+    assert first.get_cell_corners(2, 3) == second.get_cell_corners(2, 3) == empty.get_cell_corners(2, 3)
+    assert second.observations == [elsewhere, shared]
+    assert sum(cell["observation_count"] for cell in second.grid.values()) == 2
+    assert empty.observations == []

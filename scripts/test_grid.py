@@ -6,9 +6,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from app.map.grid_pipeline import build_grid, build_grid_from_env
+from app.map.campus_grid import load_campus_grid
+from app.map.grid_pipeline import build_campus_grid, build_grid, build_grid_from_env
 from app.map.grid_visualization import save_grid_image, save_grid_map
 from app.storage.supabase_reader import ROOT, fetch_observations
+
+
+YONSEI_DEMO_CELL_SIZE_M = 50
 
 
 def demo_observations():
@@ -38,19 +42,24 @@ def demo_observations():
 
 
 def yonsei_observations():
-    targets = [(4, 5), (4, 6), (4, 7), (5, 7), (6, 7), (6, 8), (6, 9), (7, 9), (8, 9), (9, 9), (9, 8), (9, 7)]
+    targets = [(1, 4), (1, 5), (1, 6), (2, 6), (3, 6), (3, 7), (3, 8),
+               (4, 8), (5, 8), (6, 8), (6, 7), (6, 6)]
+    reference = load_campus_grid(YONSEI_DEMO_CELL_SIZE_M)
     rows = []
     start = datetime(2026, 10, 16, 3, 0, tzinfo=timezone.utc)
     for index, (i, j) in enumerate(targets):
         for sample in range(2):
             offset = 0.15 + sample * 0.7
+            latitude, longitude = reference.to_geographic(
+                (i + offset) * reference.size, (j + offset) * reference.size,
+            )
             time = start + timedelta(seconds=len(rows) * 5)
             objects = [{"label": "obstacle"}] if index in (5, 9) else []
             rows.append({
                 "id": len(rows) + 1,
                 "is_simulated": True,
-                "latitude": round(37.385 - (i + offset) * 0.0005, 7),
-                "longitude": round(126.668 + (j + offset) * 0.0005, 7),
+                "latitude": round(latitude, 7),
+                "longitude": round(longitude, 7),
                 "record_time": time.isoformat().replace("+00:00", "Z"),
                 "surface_label": "cement" if index % 3 else "urethane",
                 "surface_confidence": round(0.85 + sample * 0.05, 2),
@@ -71,15 +80,23 @@ def main():
     source.add_argument("--sqlite", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--field", choices=["weight", "ramp", "ave_vibration", "object"], default="weight")
-    parser.add_argument("--size", type=float)
+    sizing = parser.add_mutually_exclusive_group()
+    sizing.add_argument("--cell-size-m", type=float, help="Target side length of a campus cell in meters")
+    sizing.add_argument("--size", type=float, help="Legacy cell size in degrees")
+    parser.add_argument("--auto-bounds", action="store_true", help="Use the axis-aligned GRID_* settings or observation bounds")
     args = parser.parse_args()
+    if args.auto_bounds and args.yonsei_demo:
+        parser.error("--yonsei-demo uses the fixed campus grid.")
+    if args.cell_size_m is not None and (args.demo or args.auto_bounds):
+        parser.error("--cell-size-m requires the campus grid.")
     if args.output is None:
         args.output = Path("output/grid/yonsei_demo.png" if args.yonsei_demo else "output/grid/grid.png")
     load_dotenv(ROOT / ".env")
     try:
         if args.yonsei_demo:
             rows = yonsei_observations()
-            result = build_grid(rows, args.size if args.size is not None else 0.0005, (37.385, 126.668), (37.378, 126.677))
+            cell_size_m = args.cell_size_m if args.cell_size_m is not None else YONSEI_DEMO_CELL_SIZE_M
+            result = build_campus_grid(rows, cell_size_m, args.size)
             title = "Yonsei International Campus - SIMULATED observations"
         elif args.demo:
             rows = demo_observations()
@@ -98,17 +115,23 @@ def main():
                 rows = json.loads(args.input.read_text(encoding="utf-8"))
             else:
                 rows = fetch_observations()
-            result = build_grid_from_env(rows, args.size)
+            if args.auto_bounds:
+                result = build_grid_from_env(rows, args.size)
+            else:
+                result = build_campus_grid(rows, args.cell_size_m, args.size)
             title = "Local observations" if args.input or args.sqlite else "Supabase observations"
         save_grid_image(result, args.output, f"{title} - {args.field}", args.field)
         map_title = "Yonsei International Campus - Grid and Simulated Observations" if args.yonsei_demo else f"{title} - {args.field}"
         save_grid_map(result, args.output.with_suffix(".html"), map_title, args.field)
-        cells = [{"row": i, "column": j, **result.get_cell_bounds(i, j), **cell} for (i, j), cell in result.grid.items()]
+        cells = [{"row": i, "column": j, **result.get_cell_geometry(i, j), **cell} for (i, j), cell in result.grid.items()]
         args.output.with_suffix(".json").write_text(json.dumps(cells, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
         args.output.with_name(args.output.stem + "_observations.json").write_text(json.dumps(rows, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
     except (ValueError, RuntimeError, KeyError, TypeError, OSError, sqlite3.Error) as error:
         parser.exit(1, f"Grid generation failed: {error}\n")
-    print(f"Observations: {len(rows)}; grid: {result.rows} x {result.columns}")
+    mapped = len(result.observations)
+    print(f"Mapped observations: {mapped}/{len(rows)}; grid: {result.rows} x {result.columns}")
+    if mapped != len(rows):
+        print(f"Excluded {len(rows) - mapped} observations with invalid coordinates or outside the campus grid.")
     measured = sum(cell[args.field] is not None for cell in result.grid.values())
     print(f"Cells with {args.field}: {measured}")
     if not measured:

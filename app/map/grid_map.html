@@ -168,28 +168,15 @@ if (typeof L === 'undefined') {
         tileToggle.checked = false;
         document.getElementById('status').textContent = 'Basemap unavailable or access blocked. Regions and point data remain available. Check your connection before enabling Basemap again.';
     });
-    const bounds = [[data.south,data.west],[data.north,data.east]];
-    if (data.cells.length) {
-        const occupied = data.cells.flatMap(cell => [[cell.south,cell.west],[cell.north,cell.east]]);
-        map.fitBounds(L.latLngBounds(occupied).pad(0.03));
-    } else {
-        map.fitBounds(bounds);
-    }
+    map.fitBounds(L.latLngBounds([[data.south,data.west],[data.north,data.east]]).pad(0.03));
     if (!localFile) tiles.addTo(map);
     const gridStyle = {color:'#59636e',weight:0.7,opacity:0.6,interactive:false};
-    for (let i=0;i<=data.rows;i++) {
-        const lat = Math.max(data.south,data.north-i*data.size);
-        L.polyline([[lat,data.west],[lat,data.east]],gridStyle).addTo(map);
-    }
-    for (let j=0;j<=data.columns;j++) {
-        const lon = Math.min(data.east,data.west+j*data.size);
-        L.polyline([[data.south,lon],[data.north,lon]],gridStyle).addTo(map);
-    }
+    L.polyline(data.lines,gridStyle).addTo(map);
     const labels = L.layerGroup().addTo(map);
     const pointLayer = L.layerGroup().addTo(map);
     for (const cell of data.cells) {
         const value = showValue(cell[data.field]);
-        const rectangle = L.rectangle([[cell.south,cell.west],[cell.north,cell.east]],{
+        const rectangle = L.polygon(cell.corners,{
             color:'#475569',weight:1.1,fillColor:cell.color,fillOpacity:0.55
         }).addTo(map);
         rectangle.on('click',() => {
@@ -199,7 +186,7 @@ if (typeof L === 'undefined') {
         });
         rectangles[cell.grid_id] = rectangle;
         const icon = L.divIcon({className:'cell-label',html:'G' + cell.grid_id + '<br>' + value,iconSize:[44,24],iconAnchor:[22,12]});
-        const label = L.marker([(cell.north+cell.south)/2,(cell.west+cell.east)/2],{icon}).addTo(labels);
+        const label = L.marker(rectangle.getBounds().getCenter(),{icon}).addTo(labels);
         label.on('click',() => {
             selectRegion(cell.grid_id);
             const first = points.find(point => point.grid_id === cell.grid_id);

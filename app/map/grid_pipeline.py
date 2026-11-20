@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime, timezone
 
+from app.map.campus_grid import load_campus_grid
 from app.map.gird import grid
 
 
@@ -37,7 +38,6 @@ def observation_time(observation):
 def build_grid(observations, size=0.0001, map_left_top=None, map_right_bottom=None):
     if not observations:
         raise ValueError("No observations. Check the table and its SELECT policy.")
-    observations = [normalize_observation(row) for row in observations]
     size = float(size)
     if (map_left_top is None) != (map_right_bottom is None):
         raise ValueError("Provide both map corners or leave both unset.")
@@ -46,9 +46,26 @@ def build_grid(observations, size=0.0001, map_left_top=None, map_right_bottom=No
         longitudes = [float(row["longitude"]) for row in observations]
         map_left_top = (max(latitudes) + size / 2, min(longitudes) - size / 2)
         map_right_bottom = (min(latitudes) - size / 2, max(longitudes) + size / 2)
-    result = grid(size, map_right_bottom, map_left_top, observations)
+    result = grid(size, map_right_bottom, map_left_top)
+    return populate_grid(result, observations)
+
+
+def build_campus_grid(observations, cell_size_m=None, size_degrees=None):
+    result = load_campus_grid(cell_size_m, size_degrees)
+    located = []
+    for row in observations:
+        try:
+            result.get_grid(row["latitude"], row["longitude"])
+        except (KeyError, TypeError, ValueError, OverflowError):
+            continue
+        located.append(row)
+    return populate_grid(result, located)
+
+
+def populate_grid(result, observations):
+    result.observations = [normalize_observation(row) for row in observations]
     result.init_grid()
-    for row in sorted(observations, key=observation_time):
+    for row in sorted(result.observations, key=observation_time):
         result.insert_grid_observation(row)
     return result
 

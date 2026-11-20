@@ -3,9 +3,9 @@ import re
 
 import pytest
 
-from app.map.grid_pipeline import build_grid
+from app.map.grid_pipeline import build_campus_grid, build_grid
 from app.map.grid_visualization import save_grid_map
-from scripts.test_grid import yonsei_observations
+from scripts.test_grid import YONSEI_DEMO_CELL_SIZE_M, yonsei_observations
 
 
 def map_data(result, path):
@@ -53,11 +53,18 @@ def test_raw_point_text_cannot_close_the_json_script(tmp_path):
 
 def test_yonsei_demo_has_all_points_and_complete_region_weights(tmp_path):
     rows = yonsei_observations()
-    result = build_grid(rows, 0.0005, (37.385, 126.668), (37.378, 126.677))
+    result = build_campus_grid(rows, YONSEI_DEMO_CELL_SIZE_M)
     data, html = map_data(result, tmp_path / "yonsei.html")
     assert len(data["points"]) == 24
     assert len(data["cells"]) == 12
     assert all(cell["observation_count"] == 2 and cell["weight"] is not None for cell in data["cells"])
-    assert all(37.378 < point["latitude"] < 37.385 and 126.668 < point["longitude"] < 126.677 for point in data["points"])
+    assert data["lines"][0] == [list(result.map_left_top), list(result.to_geographic(0, result.map_width))]
+    assert "L.polygon(cell.corners" in html
+    cells = {cell["grid_id"]: cell for cell in data["cells"]}
+    for point in data["points"]:
+        cell = cells[point["grid_id"]]
+        i, j = result.get_grid(point["latitude"], point["longitude"])
+        assert (cell["row"], cell["column"]) == (i, j)
+        assert cell["corners"] == [list(corner) for corner in result.get_cell_corners(i, j)]
     assert len({point["point_id"] for point in data["points"]}) == 24
     assert data["simulated"] is True

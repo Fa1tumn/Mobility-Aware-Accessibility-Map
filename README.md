@@ -111,8 +111,7 @@ python -m scripts.test_grid --yonsei-demo
 파일을 직접 열면 배경 지도는 비활성화되며 격자와 관측점 데이터는 계속 표시됩니다. HTTP 페이지에서 배경 지도 요청이 실패하면 해당 배경을 자동으로 숨깁니다.
 HTTP 주소에서도 차단된다면 네트워크 또는 지도 서비스의 추가 제한일 수 있습니다. `Basemap`을 끄면 격자와 오른쪽 데이터를 확인할 수 있습니다.
 
-캠퍼스 주소는 [연세대학교 공식 안내](https://www.yonsei.ac.kr/en_sc/1835/subview.do)에서 확인했습니다. 지도 기준점은 대략 위도 37.38165, 경도 126.67320이며, [지도 위치](https://mapcarta.com/W314908138)를 참고했습니다.
-시연 범위는 북쪽 37.385, 남쪽 37.378, 서쪽 126.668, 동쪽 126.677로 설정했으며, 캠퍼스의 공식 경계를 의미하지 않습니다.
+송도 격자는 `config/campus_grid.json`의 왼쪽 위와 오른쪽 위 좌표를 연결한 선을 상단으로 삼고, 그 선과 직각인 방향으로 펼칩니다. 좌표 순서는 `[위도, 경도]`입니다. 격자 방향은 [캠퍼스 외곽선](https://www.openstreetmap.org/way/314908138)을 따르며, 상단은 [YIC 운동장 트랙](https://www.openstreetmap.org/way/479712948)의 바깥쪽에 맞췄습니다.
 모의 관측점은 24개이며, 기본 설정에서 12개 영역에 각 2개의 레코드가 배치됩니다. 위치와 측정값은 모두 모의 데이터로, 실제 도로나 실측 통행 조건을 나타내지 않습니다.
 
 HTML 오른쪽에는 모든 관측점의 위도·경도, 기록 시간, 노면 종류와 신뢰도, 경사도, 진동 주파수, 장애물 수, 개별 관측점의 시험 계산 가중치, 영역 집계 가중치를 표시합니다. 전체 레코드를 펼쳐 볼 수도 있습니다.
@@ -123,19 +122,17 @@ Supabase, SQLite, JSON 입력에도 동일한 오른쪽 관측점 목록을 적�
 현재 Supabase 데이터를 더 큰 영역 블록으로 표시하려면 다음 명령을 사용합니다.
 
 ```powershell
-python -m scripts.test_grid --size 0.002 --field ave_vibration --output output/grid/regions.png
+python -m scripts.test_grid --cell-size-m 20 --field ave_vibration --output output/grid/regions.png
 ```
 
-`--size`는 이번 실행에서 사용할 `GRID_SIZE`를 지정하며, 단위는 도(degree)입니다. 제공된 5개 샘플은 좌표 간 거리가 커서 `0.0001`을 사용하면 2만 개 이상의 작은 격자가 생성됩니다. `0.002`를 사용하면 영역을 더 쉽게 구분할 수 있습니다.
-이후 실행에도 같은 크기를 사용하려면 `.env`의 `GRID_SIZE`를 변경합니다.
-`grid_id`는 북쪽에서 남쪽으로, 각 행에서는 서쪽에서 동쪽으로 부여합니다. JSON에는 ID, 영역의 위도·경도 경계, 가중치, 관측 수가 포함됩니다.
-격자 크기와 경계가 같으면 영역 번호도 유지됩니다. 장기간 같은 번호를 사용하려면 `.env`의 네 경계값을 고정하여 입력 데이터에 따라 자동 범위가 바뀌지 않도록 설정합니다.
+`--cell-size-m`은 한 변의 목표 길이를 미터로 지정합니다. 실제 길이는 상단의 두 좌표 사이를 같은 너비로 나누면서 목표 길이를 넘지 않도록 정합니다. 하단은 정사각형 한 행의 경계에 맞춰 설정 깊이까지 덮습니다.
+`grid_id`는 왼쪽 위부터 오른쪽으로 증가한 뒤 다음 행으로 넘어갑니다. 캠퍼스 설정과 격자 크기가 같으면 관측 날짜나 수집 경로가 바뀌어도 ID가 유지됩니다. JSON의 `corners`에는 각 영역의 실제 꼭짓점 네 개가 들어갑니다.
 
 제공된 SQLite 데이터베이스를 읽기 전용으로 열어 경사도 또는 진동 주파수를 확인할 수 있습니다.
 
 ```powershell
-python -m scripts.test_grid --sqlite app/map/test_observations.sqlite3 --field ramp --output output/grid/database_slope.png
-python -m scripts.test_grid --sqlite app/map/test_observations.sqlite3 --field ave_vibration --output output/grid/database_vibration.png
+python -m scripts.test_grid --sqlite app/map/test_observations.sqlite3 --auto-bounds --field ramp --output output/grid/database_slope.png
+python -m scripts.test_grid --sqlite app/map/test_observations.sqlite3 --auto-bounds --field ave_vibration --output output/grid/database_vibration.png
 ```
 
 `--field`에는 `weight`, `ramp`, `ave_vibration`, `object`를 지정할 수 있으며, 기본값은 `weight`입니다.
@@ -156,7 +153,7 @@ python -m scripts.test_grid
 
 Supabase에서 매번 새로 조회하고, `record_time`의 최신 날짜(UTC)에 해당하는 기록 중 유효한 좌표가 있는 데이터만 사용합니다.
 좌표가 없는 최신 기록을 대신하여 과거 날짜를 선택하지 않습니다. 제외된 좌표 누락·오류 기록은 `data/supabase_unmapped_observations.json`에 저장합니다.
-기본 격자 간격은 `0.0001`도이며 진동 주파수로 색상을 표시합니다. `--size 0.0002` 또는 `--field ramp`로 변경할 수 있습니다.
+기본 격자 한 변의 목표 길이는 `10`m이며 진동 주파수로 색상을 표시합니다. `--cell-size-m 20` 또는 `--field ramp`로 변경할 수 있습니다. 캠퍼스 격자 밖의 관측점은 집계에서 제외하며, 제공된 입력 기록은 `grid_observations.json`에서 확인할 수 있습니다.
 결과는 `output/grid/grid.png`, `grid.html`, `grid.json`, `grid_observations.json`에 덮어씁니다.
 
 ```powershell
@@ -173,12 +170,11 @@ python -m scripts.test_grid --input data/observations.json
 ```
 
 기본 결과 파일은 `output/grid/grid.png`, `output/grid/grid.json`, `output/grid/grid.html`입니다.
-실행할 때마다 현재 데이터를 읽고 격자를 다시 구성합니다. 데이터를 갱신하려면 명령을 다시 실행합니다.
+실행할 때마다 입력 데이터를 읽어 고정된 캠퍼스 격자에 배치합니다.
 `--demo`는 별도의 모의 좌표와 고정 경계를 사용하며, `.env`에 지정된 지도 경계의 영향을 받지 않습니다.
 
-`app/map/gird.py`는 기존 파일명과 `grid` 클래스를 유지합니다. 좌표 순서는 `(위도, 경도)`이며, 왼쪽 위는 북쪽/서쪽, 오른쪽 아래는 남쪽/동쪽에 해당합니다.
-`GRID_SIZE`의 단위는 위도·경도의 도(degree)이며 기본값은 `0.0001`입니다. 미터 단위가 아닙니다. 네 경계값을 모두 비워 두면 관측 범위에 따라 자동으로 설정하며, 모두 입력하면 지도 범위를 고정합니다. 수동으로 설정한 범위를 벗어난 관측점은 오류로 처리합니다.
-영역 끝에 격자 크기보다 작은 구간이 남으면 올림하여 포함합니다. 행 번호는 남쪽으로, 열 번호는 동쪽으로 증가합니다.
+다른 지역의 자료에 기존 위도·경도 축 격자를 사용하려면 `--auto-bounds`를 추가합니다. 이 모드에서는 `.env`의 `GRID_SIZE`와 네 경계 변수(`GRID_NORTH`, `GRID_WEST`, `GRID_SOUTH`, `GRID_EAST`)를 사용합니다. 네 경계 변수를 모두 비우면 입력 좌표의 범위를 사용합니다.
+기존 `--size` 옵션의 단위는 도입니다. 송도 격자에 사용하면 기준 위도에서의 남북 거리로 환산해 한 변의 목표 길이로 사용합니다.
 
 같은 격자의 경사도와 진동은 유효 표본의 산술평균을 사용합니다. 노면 종류는 신뢰도가 가장 높은 결과를, 장애물 값은 시간순으로 가장 최근의 유효 레코드를 사용합니다.
 `insert_grid_observation(observation)`은 필드 딕셔너리 하나를 받아 내부 `self.grid`를 갱신합니다. 별도의 grid 인자는 전달하지 않습니다.

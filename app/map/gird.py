@@ -1,7 +1,12 @@
 import math
 
 
+MAX_CELLS = 250_000
+
+
 class grid:
+    boundary_tolerance = 0
+
     def __init__(self, size, map_right_bottom, map_left_top, observations=None):
         self.size = float(size)
         self.north, self.west = map(float, map_left_top)
@@ -17,10 +22,15 @@ class grid:
         self.map_right_bottom = (self.south, self.east)
         self.map_length = self.north - self.south
         self.map_width = self.east - self.west
+        self._set_dimensions(observations)
+
+    def _set_dimensions(self, observations):
+        if max(self.map_length, self.map_width) / self.size > MAX_CELLS:
+            raise ValueError("Too many cells. Increase the cell size or reduce the map area.")
         self.rows = max(1, math.ceil(round(self.map_length / self.size, 8)))
         self.columns = max(1, math.ceil(round(self.map_width / self.size, 8)))
-        if self.rows * self.columns > 250000:
-            raise ValueError("Too many cells. Increase GRID_SIZE or reduce the map area.")
+        if self.rows * self.columns > MAX_CELLS:
+            raise ValueError("Too many cells. Increase the cell size or reduce the map area.")
         self.observations = [] if observations is None else observations
         self.grid = {}
         self.counts = {}
@@ -44,24 +54,52 @@ class grid:
                 self.counts[(i, j)] = {"ramp": 0, "ave_vibration": 0}
         return self.grid
 
-    def get_cell_bounds(self, i, j):
-        north = self.north - i * self.size
-        west = self.west + j * self.size
+    def row_edge(self, i):
+        return min(i * self.size, self.map_length)
+
+    def column_edge(self, j):
+        return min(j * self.size, self.map_width)
+
+    def to_geographic(self, down, across):
+        return self.north - down, self.west + across
+
+    def to_grid_offsets(self, latitude, longitude):
+        return self.north - latitude, longitude - self.west
+
+    def get_cell_corners(self, i, j):
+        top, bottom = self.row_edge(i), self.row_edge(i + 1)
+        left, right = self.column_edge(j), self.column_edge(j + 1)
+        return [self.to_geographic(down, across) for down, across in (
+            (top, left), (top, right), (bottom, right), (bottom, left),
+        )]
+
+    def get_cell_geometry(self, i, j):
+        corners = self.get_cell_corners(i, j)
+        latitudes, longitudes = zip(*corners)
         return {
-            "north": north,
-            "south": max(self.south, north - self.size),
-            "west": west,
-            "east": min(self.east, west + self.size),
+            "north": max(latitudes),
+            "south": min(latitudes),
+            "west": min(longitudes),
+            "east": max(longitudes),
+            "corners": corners,
         }
+
+    def get_cell_bounds(self, i, j):
+        bounds = self.get_cell_geometry(i, j)
+        del bounds["corners"]
+        return bounds
 
     def get_grid(self, latitude, longitude):
         latitude, longitude = float(latitude), float(longitude)
         if not math.isfinite(latitude) or not math.isfinite(longitude):
             raise ValueError("Coordinates must be finite numbers.")
-        if not self.south <= latitude <= self.north or not self.west <= longitude <= self.east:
+        down, across = self.to_grid_offsets(latitude, longitude)
+        tolerance = self.boundary_tolerance
+        if not (-tolerance <= down <= self.map_length + tolerance and
+                -tolerance <= across <= self.map_width + tolerance):
             raise ValueError("Latitude and longitude must be within the map boundaries.")
-        i = min(int(round((self.north - latitude) / self.size, 8)), self.rows - 1)
-        j = min(int(round((longitude - self.west) / self.size, 8)), self.columns - 1)
+        i = min(int(round(down / self.size, 8)), self.rows - 1)
+        j = min(int(round(across / self.size, 8)), self.columns - 1)
         return i, j
 
     def weight_grid(self, i, j, ramp_weight=0.3, vibration_weight=0.3, object_weight=0.3, bias=0.1):
