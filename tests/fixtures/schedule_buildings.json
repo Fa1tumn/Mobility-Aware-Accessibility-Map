@@ -1,0 +1,29 @@
+{
+  "periods": [
+    {"id": "semester", "label": "학기 중", "from": "2026-09-01", "to": "2026-12-19"},
+    {"id": "vacation", "label": "방학 중", "from": "2026-12-20", "to": "2027-02-28"}
+  ],
+  "holidays": ["2026-12-25"],
+  "entrances": [
+    {
+      "id": "lib_ground_stepfree",
+      "name": "도서관 지상 계단 없는 문",
+      "building": "도서관",
+      "hours": {
+        "semester": {"weekdays": ["09:00-18:00"], "saturday": ["09:00-18:00"], "sunday": ["12:00-18:00"]},
+        "vacation": {}
+      },
+      "source": "시험용 합성 값"
+    },
+    {
+      "id": "lib_underground",
+      "name": "도서관 지하 입구",
+      "building": "도서관",
+      "hours": {
+        "semester": {"weekdays": ["08:30-24:00"], "saturday": ["09:00-18:00"], "sunday": ["12:00-18:00"]},
+        "vacation": {"weekdays": ["09:00-17:00"]}
+      },
+      "source": "시험용 합성 값"
+    }
+  ]
+}
