@@ -1,0 +1,187 @@
+{
+  "note": "기간 날짜는 학사일정 확인 전 가정값. 공휴일은 확실한 날만 넣었고 설날 연휴는 확인 후 추가. 시험기간 연장은 공지로만 나와 반영하지 않음",
+  "periods": [
+    {
+      "id": "semester",
+      "label": "학기 중",
+      "from": "2026-09-01",
+      "to": "2026-12-18",
+      "verified": false,
+      "note": "2026-2학기 종강일 확인 필요"
+    },
+    {
+      "id": "vacation",
+      "label": "방학 중",
+      "from": "2026-12-19",
+      "to": "2027-02-28",
+      "verified": false,
+      "note": "겨울방학 기간 확인 필요"
+    }
+  ],
+  "holidays": [
+    "2026-10-03",
+    "2026-10-09",
+    "2026-12-25",
+    "2027-01-01"
+  ],
+  "entrances": [
+    {
+      "id": "underwood_ground_stepfree",
+      "name": "언더우드기념도서관 지상 계단 없는 문",
+      "building": "언더우드기념도서관",
+      "hours": {
+        "semester": {
+          "weekdays": [
+            "09:00-18:00"
+          ],
+          "saturday": [
+            "09:00-18:00"
+          ],
+          "sunday": [
+            "12:00-18:00"
+          ]
+        },
+        "vacation": {}
+      },
+      "wheelchair_accessible": true,
+      "threshold_cm": 0.0,
+      "verified_at": "2026-11-20",
+      "source": "현장 확인: 학기 중 09-18만 열고 방학에는 닫음. 주말 시간은 도서관 시간과 겹치는 범위로 가정(미확인)"
+    },
+    {
+      "id": "underwood_ground_stairs",
+      "name": "언더우드기념도서관 지상 계단 입구",
+      "building": "언더우드기념도서관",
+      "hours": {
+        "semester": {
+          "weekdays": [
+            "08:30-24:00"
+          ],
+          "saturday": [
+            "09:00-18:00"
+          ],
+          "sunday": [
+            "12:00-18:00"
+          ]
+        },
+        "vacation": {
+          "weekdays": [
+            "09:00-17:00"
+          ]
+        }
+      },
+      "wheelchair_accessible": false,
+      "threshold_cm": 0.0,
+      "verified_at": "2026-11-20",
+      "source": "언더우드기념도서관 홈페이지 Services > 이용안내 > 도서관 이용시간 (2026-11-20 확인). 출입구별 시간은 도서관 시간과 같다고 가정(미확인)"
+    },
+    {
+      "id": "underwood_b1_1",
+      "name": "언더우드기념도서관 지하 입구 1",
+      "building": "언더우드기념도서관",
+      "hours": {
+        "semester": {
+          "weekdays": [
+            "08:30-24:00"
+          ],
+          "saturday": [
+            "09:00-18:00"
+          ],
+          "sunday": [
+            "12:00-18:00"
+          ]
+        },
+        "vacation": {
+          "weekdays": [
+            "09:00-17:00"
+          ]
+        }
+      },
+      "wheelchair_accessible": true,
+      "threshold_cm": 0.0,
+      "verified_at": "2026-11-20",
+      "source": "언더우드기념도서관 홈페이지 Services > 이용안내 > 도서관 이용시간 (2026-11-20 확인). 출입구별 시간은 도서관 시간과 같다고 가정(미확인), 휠체어 접근성 현장 확인 필요"
+    },
+    {
+      "id": "underwood_b1_2",
+      "name": "언더우드기념도서관 지하 입구 2",
+      "building": "언더우드기념도서관",
+      "hours": {
+        "semester": {
+          "weekdays": [
+            "08:30-24:00"
+          ],
+          "saturday": [
+            "09:00-18:00"
+          ],
+          "sunday": [
+            "12:00-18:00"
+          ]
+        },
+        "vacation": {
+          "weekdays": [
+            "09:00-17:00"
+          ]
+        }
+      },
+      "wheelchair_accessible": true,
+      "threshold_cm": 0.0,
+      "verified_at": "2026-11-20",
+      "source": "언더우드기념도서관 홈페이지 Services > 이용안내 > 도서관 이용시간 (2026-11-20 확인). 출입구별 시간은 도서관 시간과 같다고 가정(미확인), 휠체어 접근성 현장 확인 필요"
+    },
+    {
+      "id": "underwood_b1_3",
+      "name": "언더우드기념도서관 지하 입구 3",
+      "building": "언더우드기념도서관",
+      "hours": {
+        "semester": {
+          "weekdays": [
+            "08:30-24:00"
+          ],
+          "saturday": [
+            "09:00-18:00"
+          ],
+          "sunday": [
+            "12:00-18:00"
+          ]
+        },
+        "vacation": {
+          "weekdays": [
+            "09:00-17:00"
+          ]
+        }
+      },
+      "wheelchair_accessible": true,
+      "threshold_cm": 0.0,
+      "verified_at": "2026-11-20",
+      "source": "언더우드기념도서관 홈페이지 Services > 이용안내 > 도서관 이용시간 (2026-11-20 확인). 출입구별 시간은 도서관 시간과 같다고 가정(미확인), 휠체어 접근성 현장 확인 필요"
+    },
+    {
+      "id": "underwood_b1_4",
+      "name": "언더우드기념도서관 지하 입구 4",
+      "building": "언더우드기념도서관",
+      "hours": {
+        "semester": {
+          "weekdays": [
+            "08:30-24:00"
+          ],
+          "saturday": [
+            "09:00-18:00"
+          ],
+          "sunday": [
+            "12:00-18:00"
+          ]
+        },
+        "vacation": {
+          "weekdays": [
+            "09:00-17:00"
+          ]
+        }
+      },
+      "wheelchair_accessible": true,
+      "threshold_cm": 0.0,
+      "verified_at": "2026-11-20",
+      "source": "언더우드기념도서관 홈페이지 Services > 이용안내 > 도서관 이용시간 (2026-11-20 확인). 출입구별 시간은 도서관 시간과 같다고 가정(미확인), 휠체어 접근성 현장 확인 필요"
+    }
+  ]
+}

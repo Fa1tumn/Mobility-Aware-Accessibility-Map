@@ -149,6 +149,18 @@ class Edge:
     def is_reverse(self) -> bool:
         return self.id.endswith(":rev")
 
+    def reversed(self) -> "Edge":
+        """반대 방향으로 지날 때의 간선. 경사 부호와 geometry를 뒤집고 ID에 ':rev'를 붙인다."""
+        if self.is_reverse:
+            raise SchemaError(f"{self.id}: 이미 역방향 간선이다")
+        return Edge(**{**asdict(self),
+                       "id": self.id + ":rev",
+                       "from_node": self.to_node,
+                       "to_node": self.from_node,
+                       "slope_deg": None if self.slope_deg is None else -self.slope_deg,
+                       "slope_pct": None if self.slope_pct is None else -self.slope_pct,
+                       "geometry": None if self.geometry is None else list(reversed(self.geometry))})
+
 
 @dataclass
 class Graph:
@@ -191,12 +203,5 @@ class Graph:
             if e.from_node == node_id:
                 out.append(e)
             elif e.to_node == node_id:
-                rev = Edge(**{**asdict(e),
-                              "id": e.id + ":rev",
-                              "from_node": e.to_node,
-                              "to_node": e.from_node,
-                              "slope_deg": None if e.slope_deg is None else -e.slope_deg,
-                              "slope_pct": None if e.slope_pct is None else -e.slope_pct,
-                              "geometry": None if e.geometry is None else list(reversed(e.geometry))})
-                out.append(rev)
+                out.append(e.reversed())
         return out

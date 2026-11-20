@@ -176,12 +176,14 @@ cost(arc) = L/100 × [ w_distance
 | L4 | `app/events/projector.py` (카메라 객체 → 간선) | 새로 |
 | L5 | `app/profile/cost.py` 오르막·내리막 분리 | 완료 (PR #2) |
 | L6 | `app/routing/alternatives.py`, `explain.py`, `metrics.py`, `evaluate.py` | 완료 |
+| L6 | `app/routing/buildings.py` (건물 간 경로, 출입구 선택), `assess.py` (간선 판정 정·역방향) | 완료 |
 | L6 | `app/routing/astar.py` | 나중 |
+| 시간 | `app/schedule/resolver.py` 학기·방학 기간, 공휴일, 24:00 | 완료 |
 | L7 | `app/nav/reroute.py` (재탐색 판단) | 완료 |
 | L7 | `app/nav/tracker.py`, `maneuvers.py` (위치 추적, 안내 문구) | 새로 |
 | 실행 | `scripts/route.py`(`--explain`, `--events`), `scripts/events.py`, `scripts/event_demo.py` | 완료 |
 | 실행 | `scripts/build_state.py`, `scripts/serve_nav.py` | 새로 |
-| 데이터 | `config/events.json`, `data/events/demo_mini.json` | 완료 |
+| 데이터 | `config/events.json`, `data/events/demo_mini.json`, `data/campus/schedule.json`(도서관 운영 시간) | 완료 |
 | 데이터 | `data/graph/test_area.geojson`, `data/state/edge_state_<날짜>.json`, `config/profiles.json` | 새로 |
 
 ## 6. 토요일까지와 그 이후

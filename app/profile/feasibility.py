@@ -52,7 +52,6 @@ def check(
 
     if schedule is not None and edge.entrance_id is not None:
         if not schedule.is_open(edge.entrance_id, when):
-            when_s = when.strftime("%a %H:%M") if when else "?"
-            reasons.append(f"{when_s} 출입 불가 ({edge.entrance_id})")
+            reasons.append(f"출입 불가 — {schedule.reason(edge.entrance_id, when)}")
 
     return Feasibility(passable=not reasons, reasons=reasons)

@@ -13,13 +13,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from app.graph.schema import Edge
 from app.profile import cost as cost_mod
 from app.profile import feasibility as feas_mod
 from app.profile.definitions import Profile
 from app.schedule.resolver import ScheduleBook
+
+if TYPE_CHECKING:
+    from app.events.overlay import EventOverlay
 
 # 100m 환산 비용이 이 값을 넘으면 '어려움'으로 본다.
 DIFFICULT_THRESHOLD = 2.0
@@ -43,13 +46,20 @@ def evaluate(
     profile: Profile,
     when: Optional[datetime] = None,
     schedule: Optional[ScheduleBook] = None,
+    events: Optional["EventOverlay"] = None,
 ) -> Verdict:
+    """events를 주면 막는 이벤트는 '불가', 비용 이벤트는 최소 '어려움'으로 본다.
+    비용 이벤트는 간선 길이와 무관한 지점 비용이라 100m 정규화에 넣지 않는다."""
     f = feas_mod.check(edge, profile, when, schedule)
-    if not f.passable:
-        return Verdict(level="impassable", reasons=f.reasons)
+    eff = events.effect(edge.base_id, profile) if events else None
+    if not f.passable or (eff and eff.block):
+        return Verdict(level="impassable",
+                       reasons=f.reasons + (eff.block_reasons if eff and eff.block else []))
 
     c = cost_mod.compute(edge, profile)
     # 구간 길이에 비례해 커지는 값이므로 100m 기준으로 정규화해 비교한다
     norm = c.value / max(edge.distance_m / cost_mod.DISTANCE_UNIT_M, 1e-6)
     level = "difficult" if norm >= DIFFICULT_THRESHOLD else "passable"
+    if eff:
+        return Verdict(level="difficult", reasons=c.reasons + eff.reasons, cost=c.value + eff.penalty)
     return Verdict(level=level, reasons=c.reasons, cost=c.value)

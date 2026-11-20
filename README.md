@@ -214,7 +214,8 @@ python -m scripts.route --graph tests/fixtures/routing_mini.geojson \
     --from A --to D --profile wheelchair --explain     # 추천·최단·대안 경로와 선택 이유
 python -m scripts.demo_route                       # 9월 Hero 데모 (좌표 없는 6노드 graph)
 python -m pytest tests/test_routing_requirements.py tests/test_routing_geojson.py \
-    tests/test_directional_slope.py tests/test_route_choice.py tests/test_events.py tests/test_reroute.py
+    tests/test_directional_slope.py tests/test_route_choice.py tests/test_events.py tests/test_reroute.py \
+    tests/test_schedule_periods.py tests/test_assess.py tests/test_building_route.py
 ```
 
 공사·통제나 정차 차량 같은 동적 이벤트는 수동으로 넣고, 유효시간이 지나면 자동으로 빠집니다.
@@ -231,6 +232,13 @@ python -m scripts.event_demo data/events/demo_mini.json    # 이벤트 → 재�
 - graph 형식, 단위, 출력 필드: [docs/routing-data-contract.md](docs/routing-data-contract.md)
 - 엔진 설계와 9월 검증 내용: [docs/routing-engine.md](docs/routing-engine.md)
 - 경로 선택, 이벤트, 재탐색 규칙: [docs/route-choice-and-events.md](docs/route-choice-and-events.md)
+- 출입구 운영 시간(학기·방학)과 건물 간 경로: [docs/routing-data-contract.md](docs/routing-data-contract.md)
+
+```bash
+python -m scripts.building_route --graph tests/fixtures/routing_buildings.geojson \
+    --buildings tests/fixtures/buildings_mini.json --schedule tests/fixtures/schedule_buildings.json \
+    --from student_hall --to library --profile wheelchair --when 2026-11-20T19:00
+```
 - 전체 구조(L0~L7): [docs/navigation-architecture.md](docs/navigation-architecture.md)
 - `tests/fixtures/routing_mini.geojson`은 시험용 합성 graph입니다. 실험 구역 graph는 실측 후 `data/graph/`에 둡니다.
 

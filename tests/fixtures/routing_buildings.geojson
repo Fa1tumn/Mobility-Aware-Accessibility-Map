@@ -1,0 +1,325 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     126.67,
+     37.381
+    ]
+   },
+   "properties": {
+    "id": "S1",
+    "name": "학생회관 정문",
+    "kind": "entrance",
+    "level": 0
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     126.6704522,
+     37.381
+    ]
+   },
+   "properties": {
+    "id": "J1",
+    "name": "광장",
+    "kind": "junction",
+    "level": 0
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     126.6711305,
+     37.381
+    ]
+   },
+   "properties": {
+    "id": "J2",
+    "name": "도서관 앞",
+    "kind": "junction",
+    "level": 0
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     126.6712435,
+     37.381
+    ]
+   },
+   "properties": {
+    "id": "L1",
+    "name": "도서관 지상 계단 입구",
+    "kind": "entrance",
+    "level": 0
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     126.6711305,
+     37.3812261
+    ]
+   },
+   "properties": {
+    "id": "L2",
+    "name": "도서관 지상 계단 없는 문",
+    "kind": "entrance",
+    "level": 0
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     126.6704522,
+     37.3807287
+    ]
+   },
+   "properties": {
+    "id": "U1",
+    "name": "지하 광장",
+    "kind": "junction",
+    "level": -1
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     126.6713566,
+     37.3807287
+    ]
+   },
+   "properties": {
+    "id": "L3",
+    "name": "도서관 지하 입구",
+    "kind": "entrance",
+    "level": -1
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     126.6704522,
+     37.3813617
+    ]
+   },
+   "properties": {
+    "id": "E1",
+    "name": "공학관 입구",
+    "kind": "entrance",
+    "level": 0
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      126.67,
+      37.381
+     ],
+     [
+      126.6704522,
+      37.381
+     ]
+    ]
+   },
+   "properties": {
+    "id": "S1J1",
+    "from_node": "S1",
+    "to_node": "J1",
+    "width_level": "normal",
+    "source": "survey",
+    "slope_pct": 0.0,
+    "surface": "block",
+    "note": "평지"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      126.6704522,
+      37.381
+     ],
+     [
+      126.6711305,
+      37.381
+     ]
+    ]
+   },
+   "properties": {
+    "id": "J1J2",
+    "from_node": "J1",
+    "to_node": "J2",
+    "width_level": "normal",
+    "source": "survey",
+    "slope_pct": 0.0,
+    "surface": "block",
+    "note": "평지"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      126.6711305,
+      37.381
+     ],
+     [
+      126.6712435,
+      37.381
+     ]
+    ]
+   },
+   "properties": {
+    "id": "J2L1",
+    "from_node": "J2",
+    "to_node": "L1",
+    "width_level": "normal",
+    "source": "survey",
+    "slope_pct": 0.0,
+    "stairs": 6,
+    "surface": "concrete",
+    "note": "계단 6단"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      126.6711305,
+      37.381
+     ],
+     [
+      126.6711305,
+      37.3812261
+     ]
+    ]
+   },
+   "properties": {
+    "id": "J2L2",
+    "from_node": "J2",
+    "to_node": "L2",
+    "width_level": "normal",
+    "source": "survey",
+    "slope_pct": 7.0,
+    "surface": "concrete",
+    "ramp": true,
+    "entrance_id": "lib_ground_stepfree",
+    "note": "J2→L2 7% 오르막 경사로, 학기 중 09-18만 개방"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      126.6704522,
+      37.381
+     ],
+     [
+      126.6704522,
+      37.3807287
+     ]
+    ]
+   },
+   "properties": {
+    "id": "J1U1",
+    "from_node": "J1",
+    "to_node": "U1",
+    "width_level": "normal",
+    "source": "survey",
+    "slope_pct": -10.0,
+    "surface": "concrete",
+    "ramp": true,
+    "note": "J1→U1 10% 내리막(지하 광장으로)"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      126.6704522,
+      37.3807287
+     ],
+     [
+      126.6709044,
+      37.3807287
+     ],
+     [
+      126.6713566,
+      37.3807287
+     ]
+    ]
+   },
+   "properties": {
+    "id": "U1L3",
+    "from_node": "U1",
+    "to_node": "L3",
+    "width_level": "normal",
+    "source": "survey",
+    "slope_pct": 0.0,
+    "surface": "tile",
+    "env": "underground",
+    "entrance_id": "lib_underground",
+    "note": "지하 통로"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      126.6704522,
+      37.381
+     ],
+     [
+      126.6704522,
+      37.3813617
+     ]
+    ]
+   },
+   "properties": {
+    "id": "J1E1",
+    "from_node": "J1",
+    "to_node": "E1",
+    "width_level": "normal",
+    "source": "survey",
+    "slope_pct": 0.0,
+    "surface": "block",
+    "note": "평지"
+   }
+  }
+ ]
+}
