@@ -45,3 +45,21 @@ python -m scripts.ramp_segments --input observations_2026-11-20.csv \
 - 편향은 기록 하나에서 상수로 본다. 장착 자세가 바뀌면 기록을 나눠 돌린다.
 - GPS 오차(수 m)가 길이에 그대로 들어간다. 경사로 길이의 정답은 현장 실측으로 맞춰야 한다.
 - 지도에 표시한 경사로 번호와의 대응은 아직 손으로 맞춘다.
+
+## 여러 날 경사 지도 (scripts/slope_map.py)
+
+여러 기록을 캠퍼스 정사각형 격자(`config/campus_grid.json`) 위에 합쳐 HTML 한 장으로 본다.
+
+```bash
+python -m scripts.slope_map \
+    --input "11/19 루프=observations_2026-11-19.csv" \
+    --input "11/20 휠체어=observations_2026-11-20.csv" \
+    --out output/slope/slope-map.html
+python -m scripts.open_grid output/slope/slope-map.html   # 배경 지도까지 보려면 HTTP로
+```
+
+- 편향은 기록마다 따로 추정해서 뺀다 (11/19 −0.02%, 11/20 +2.37%).
+- 칸 색은 편향 보정 경사의 크기 평균. 같은 경사로를 오르고 내린 칸이 0%로 보이지 않게 한다.
+- 점은 2초 창 하나, 진행 방향 기준 색(주황 오르막, 파랑 내리막). 선은 변화율로 찾은 경사로 구간,
+  1/12를 넘으면 노란 테두리. 날짜별로 켜고 끌 수 있고, 표의 행을 누르면 그 구간으로 이동한다.
+- 경계 사이에 GPS가 없는 구간은 지도에 올리지 않는다.

@@ -116,6 +116,8 @@ class Analysis:
     dist: np.ndarray                 # 세션별 누적 거리 (m), 좌표 없으면 NaN
     speed: np.ndarray                # 창별 속도 (m/s)
     ramps: list[Ramp] = field(default_factory=list)
+    lat: Optional[np.ndarray] = None  # 보간·이동 평균한 좌표 (세션 안), 없으면 NaN
+    lon: Optional[np.ndarray] = None
 
     def summary(self) -> dict:
         def stat(mask):
@@ -331,7 +333,7 @@ def analyze(samples: Sequence[Sample], params: Optional[Params] = None) -> Analy
     _places(ramps, p.same_place_m)
     return Analysis(params=p, bias_pct=bias, n_samples=len(t), n_sessions=int(session.max()) + 1,
                     t=t, t0=t0, session=session, slope=slope, g=g, rate=rate, phase=phase,
-                    dist=dist, speed=speed, ramps=ramps)
+                    dist=dist, speed=speed, ramps=ramps, lat=plat, lon=plon)
 
 
 def _edges(sid, idx, ts, gs, rs, a, b, s, p: Params, t0, phase, dist, plat, plon, gps_ok) -> Ramp:
