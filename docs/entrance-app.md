@@ -30,24 +30,37 @@
 
 ## 경로 계산에 연결
 
-    python -m scripts.import_entrances --graph data/graph/test_area.geojson \
-        --out-graph output/route/graph_with_entrances.geojson --out-buildings output/route/buildings_registered.json
+두 가지 원칙을 지킨다.
 
-기록마다 출입구 노드(`kind=entrance`, 핀 위치)를 만들고 25m 안의 가장 가까운 보행로 노드와 연결 간선으로 잇는다.
-계단·문턱·경사로는 그 간선에 실린다. 결과 파일은 `scripts.route`, `scripts.building_route`의 `--graph`, `--buildings`에 넣는다.
+- **미확인은 채우지 않는다.** '모름'을 0으로 바꾸거나, 재지 않은 계단 단수·문턱 높이를 가정값으로 넣지 않는다.
+  경로 엔진의 간선은 계단 수·문턱 높이를 비워 둘 수 없으므로, 하나라도 미확인이면 graph에 넣지 않고 '현장 보완 필요'로 남긴다.
+- **보행로 연결은 확인한 뒤에만.** 핀에서 25m 안의 보행로 노드를 가까운 순으로 3개까지 '후보'로 보여주고,
+  사람이 확인해 `data/campus/entrance_links.json`에 적은 노드와만 잇는다.
 
-| 웹앱 값 | 연결 간선 |
-|---|---|
-| 계단 있음(단수 입력) / 있음(단수 모름) / 없음 / 모름 | stairs = 단수 / 1 / 0 / 0 |
-| 문턱 있음(cm 입력) / 있음(높이 모름) / 없음 / 모름 | threshold_cm = 값 / 3.0(휠체어 한도 2cm보다 높은 보수값) / 0 / 0 |
-| 경사로 있음 | ramp = true |
-| 모름 항목 하나마다 | confidence −0.25, note에 '미확인: …' |
+```bash
+# 1) 받아서 검토 목록 만들기 (output/route/entrance_review.json)
+python -m scripts.import_entrances --graph data/graph/test_area.geojson
+# 2) 후보 중 실제로 문까지 이어지는 노드를 확인해 적기
+#    data/campus/entrance_links.json  →  {"links": {"<record_id>": "<보행로 노드 ID>"}}
+# 3) 다시 실행 → 값이 모두 있고 연결이 확인된 출입구만 graph·건물 파일에 들어감
+python -m scripts.import_entrances --graph data/graph/test_area.geojson
+```
 
-25m 안에 보행로 노드가 없으면 억지로 잇지 않고 건너뛴 목록에 남긴다(graph에 그 길을 먼저 그려야 한다).
+| 상태 | 뜻 | 할 일 |
+|---|---|---|
+| 현장 보완 필요 (`needs_survey`) | 계단·문턱·경사로 중 '모름'이 있거나, '있음'인데 단수·높이를 안 잼 | 다시 가서 확인 후 재등록 |
+| 연결 확인 필요 (`needs_link`) | 값은 다 있음. 이을 보행로 미확인 | 후보를 확인해 links 파일에 적기 |
+| graph에 연결됨 (`attached`) | 출입구 노드 + 연결 간선 생성 | - |
+| 오류 (`invalid`) | 핀 좌표 없음, 확인한 노드가 graph에 없음 | 기록·links 확인 |
+
+연결 간선에는 잰 값만 들어간다: 계단 단수, 문턱 높이(cm, '없음'은 0), 경사로 유무.
+결과 파일(`output/route/graph_with_entrances.geojson`, `buildings_registered.json`)은
+`scripts.route`, `scripts.building_route`의 `--graph`, `--buildings`에 넣는다.
+graph 없이 실행하면(`--graph` 생략) 받은 기록의 미확인 항목만 점검한다.
 건물 목록은 `scripts/build_entrance_buildings.py`로 OpenStreetMap 건물 중 캠퍼스 사각형 안의 것만 뽑은 것이다.
 
 ## 아직 안 한 것
 
-- 가까운 보행로 후보를 앱 화면에 보여주고 "이 길로 이어짐"을 확인받기 (graph가 생긴 뒤)
+- 연결 후보를 앱 화면에서 바로 확인받기 (지금은 검토 목록 + links 파일, 실험 구역 graph가 생긴 뒤)
 - 운영 시간을 `data/campus/schedule.json` 형식으로 구조화해서 받기 (지금은 메모)
 - 등록 내용 수정·삭제 (지금은 공개 키로 등록·조회만 가능)

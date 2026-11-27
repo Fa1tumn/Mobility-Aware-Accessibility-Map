@@ -428,10 +428,12 @@ function renderSave() {
     on: {input: e => localStorage.setItem("entrance.recorder", e.target.value)}});
   sheet.append(el("label", {class: "field"}, "등록한 사람"), recorder);
   const unknowns = ["stairs", "ramp", "threshold"].filter(k => state[k] === "unknown").map(k => ({stairs: "계단", ramp: "경사로", threshold: "문턱"})[k]);
+  if (state.stairs === "yes" && !(num(state.stairsCount, true) > 0)) unknowns.push("계단 단수");
+  if (state.threshold === "yes" && !(num(state.thresholdCm) > 0)) unknowns.push("문턱 높이");
   if (state.doorType === "unknown") unknowns.push("문 종류");
   statusBox = el("div", {class: "status " + (unknowns.length ? "warn" : "")},
     `${state.building.name} · 핀 ${state.gps ? "GPS ±" + Math.round(state.gps.accuracy) + "m에서 조정" : "직접 지정"} · 사진 ${state.photo ? "있음" : "없음"}` +
-    (unknowns.length ? `\n미확인: ${unknowns.join(", ")}` : ""));
+    (unknowns.length ? `\n미확인: ${unknowns.join(", ")} (경로 계산에는 확인 후 반영)` : ""));
   statusBox.style.whiteSpace = "pre-line";
   sheet.append(statusBox, nav("저장", true, save));
 }
