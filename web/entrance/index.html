@@ -68,7 +68,7 @@ const DEFAULTS = {table: "entrances", bucket: "entrance-photos"};
 function loadConfig() {
   const hash = new URLSearchParams(location.hash.slice(1));
   if (hash.get("url") && hash.get("key")) {
-    localStorage.setItem("entrance.config", JSON.stringify({url: hash.get("url"), key: hash.get("key")}));
+    localStorage.setItem("entrance.config", JSON.stringify({url: hash.get("url").trim(), key: hash.get("key").trim()}));
     history.replaceState(null, "", location.pathname + location.search);
   }
   const saved = JSON.parse(localStorage.getItem("entrance.config") || "null");
@@ -77,6 +77,10 @@ function loadConfig() {
   return c.url && c.key ? c : null;
 }
 function checkKey(key) {
+  if (!/^[A-Za-z0-9._-]+$/.test(key)) {
+    return "키에 한글·공백 같은 글자가 들어 있습니다. 링크의 '여기에공개키' 자리를 Supabase 공개 키로 바꿔 다시 넣으세요.";
+  }
+  if (!/^(sb_publishable_|eyJ)/.test(key)) return "공개 키는 sb_publishable_로 시작합니다.";
   if (/^sb_secret_/.test(key) || /service_role/.test(atobSafe(key.split(".")[1] || ""))) {
     return "비밀 키입니다. 웹앱에는 공개 키(sb_publishable_...)만 넣으세요.";
   }
