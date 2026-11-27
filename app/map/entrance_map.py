@@ -6,9 +6,9 @@
 
 출입구마다 상태를 하나 붙인다.
     complete      계단·문턱·경사로 값이 모두 있다 (있음이면 단수·높이까지)
-    needs_survey  미확인 항목이 있다. 값은 비워 두고 missing에 적는다
+    needs_survey  값을 지어낼 수 없는 항목이 있다('있음'인데 단수·높이 미입력, strict면 '모름'도)
     place         출입구가 아닌 장소 (메모가 "[장소]"로 시작)
-미확인 값은 0이나 가정값으로 채우지 않는다.
+팀 결정에 따라 '모름'은 '없음'으로 읽고(assumed에 기록, 원본은 그대로), 잰 적 없는 숫자는 채우지 않는다.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from app.graph.registered_entrances import is_place, missing_items
+from app.graph.registered_entrances import apply_unknown_policy, is_place, missing_items
 
 TEMPLATE = Path(__file__).with_name("entrance_map.html")
 DOOR_LABEL = {"automatic": "자동문", "button": "버튼식", "push": "미는 문", "pull": "당기는 문",
@@ -31,7 +31,14 @@ def entrance_status(record: dict) -> tuple[str, list[str]]:
     return ("needs_survey" if missing else "complete"), missing
 
 
-def _value(record: dict, key: str, amount_key: str):
+def _value(record: dict, key: str, amount_key: str, assumed: list[str], label: str):
+    v = _raw_value(record, key, amount_key)
+    if label in assumed:
+        v["assumed"] = True
+    return v
+
+
+def _raw_value(record: dict, key: str, amount_key: str):
     """있음/없음/모름을 그대로 두고, 있음이면 잰 값을 붙인다. 모름은 None."""
     state = record.get(key, "unknown")
     if state == "no":
@@ -42,7 +49,9 @@ def _value(record: dict, key: str, amount_key: str):
     return {"state": "unknown", "amount": None}
 
 
-def to_feature(record: dict, photo_base: str = "") -> dict:
+def to_feature(record: dict, photo_base: str = "", strict: bool = False) -> dict:
+    original = record
+    record, assumed = apply_unknown_policy(record, strict or is_place(record))
     status, missing = entrance_status(record)
     photo = record.get("photo_path")
     return {
@@ -56,8 +65,10 @@ def to_feature(record: dict, photo_base: str = "") -> dict:
             "building_id": record.get("building_id"),
             "building_name": record.get("building_name"),
             "entrance_name": record.get("entrance_name"),
-            "stairs": _value(record, "stairs", "stairs_count"),
-            "threshold_cm": _value(record, "threshold", "threshold_cm"),
+            "assumed": assumed,
+            "recorded_as": {k: original.get(k, "unknown") for k in ("stairs", "threshold", "ramp")},
+            "stairs": _value(record, "stairs", "stairs_count", assumed, "계단"),
+            "threshold_cm": _value(record, "threshold", "threshold_cm", assumed, "문턱"),
             "ramp": record.get("ramp", "unknown"),
             "door_type": record.get("door_type", "unknown"),
             "opening_hours": record.get("opening_hours"),
@@ -72,14 +83,18 @@ def to_feature(record: dict, photo_base: str = "") -> dict:
     }
 
 
-def build_collection(records: list[dict], photo_base: str = "") -> dict:
-    features = [to_feature(r, photo_base) for r in records
+def build_collection(records: list[dict], photo_base: str = "", strict: bool = False) -> dict:
+    features = [to_feature(r, photo_base, strict) for r in records
                 if isinstance(r.get("pin_lat"), (int, float)) and isinstance(r.get("pin_lon"), (int, float))]
     counts = Counter(f["properties"]["status"] for f in features)
     return {
         "type": "FeatureCollection",
         "properties": {"count": len(features), "status_counts": dict(counts),
-                       "note": "미확인 값은 비워 둔다(state=unknown, amount=null). 0이나 가정값으로 채우지 않는다."},
+                       "assumed_unknown_as_no": not strict,
+                       "assumed_features": sum(bool(f["properties"]["assumed"]) for f in features),
+                       "note": ("'모름'은 '없음'으로 읽음(팀 결정). 해당 값에 assumed=true, 원래 입력은 recorded_as. "
+                                "'있음'인데 잰 값이 없으면 amount=null로 비워 둔다.") if not strict else
+                               "미확인 값은 비워 둔다(state=unknown, amount=null)."},
         "features": features,
     }
 

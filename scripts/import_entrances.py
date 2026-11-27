@@ -62,6 +62,7 @@ def main(argv=None) -> int:
     parser.add_argument("--out-graph", type=Path, default=ROOT / "output/route/graph_with_entrances.geojson")
     parser.add_argument("--out-buildings", type=Path, default=ROOT / "output/route/buildings_registered.json")
     parser.add_argument("--radius-m", type=float, default=CANDIDATE_RADIUS_M)
+    parser.add_argument("--strict", action="store_true", help="'모름'을 '없음'으로 읽지 않기")
     args = parser.parse_args(argv)
     try:
         if args.input:
@@ -79,7 +80,7 @@ def main(argv=None) -> int:
             return 0
         graph = load_geojson(args.graph)
         book = load_buildings(args.buildings, graph) if args.buildings else None
-        book, reviews = attach_entrances(graph, records, load_links(args.links), book, args.radius_m)
+        book, reviews = attach_entrances(graph, records, load_links(args.links), book, args.radius_m, args.strict)
         problems = graph.validate()
         if problems:
             raise ValueError("graph 검사 실패: " + "; ".join(problems[:5]))

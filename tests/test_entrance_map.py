@@ -20,9 +20,10 @@ def test_status_and_unknown_kept_empty():
     props = {f["properties"]["id"]: f["properties"] for f in fc["features"]}
     assert props["a"]["status"] == "complete"
     assert props["b"]["status"] == "needs_survey"
-    assert props["b"]["missing"] == ["계단 단수", "문턱"]
+    assert props["b"]["missing"] == ["계단 단수"]                         # 잰 값은 지어내지 않음
     assert props["b"]["stairs"] == {"state": "yes", "amount": None}
-    assert props["b"]["threshold_cm"] == {"state": "unknown", "amount": None}
+    assert props["b"]["threshold_cm"] == {"state": "no", "amount": 0, "assumed": True}
+    assert props["b"]["assumed"] == ["문턱"] and props["b"]["recorded_as"]["threshold"] == "unknown"
     assert props["a"]["threshold_cm"] == {"state": "no", "amount": 0}
     assert props["c"]["kind"] == "place" and props["c"]["status"] == "place"
     assert props["a"]["photo_url"].endswith("/entrance-photos/2026-11-27/x.jpg")
@@ -37,3 +38,10 @@ def test_map_html_embeds_data_safely(tmp_path):
     assert "__ENTRANCE_DATA__" not in html and "</script><script>alert" not in html
     data = json.loads(re.search(r'<script id="entrance-data" type="application/json">(.*?)</script>', html, re.S).group(1))
     assert data["entrances"]["features"][0]["properties"]["note"].startswith("</script>")
+
+
+def test_strict_mode_keeps_unknown():
+    fc = build_collection([rec("b", threshold="unknown")], strict=True)
+    p = fc["features"][0]["properties"]
+    assert p["status"] == "needs_survey" and p["threshold_cm"] == {"state": "unknown", "amount": None}
+    assert p["assumed"] == []

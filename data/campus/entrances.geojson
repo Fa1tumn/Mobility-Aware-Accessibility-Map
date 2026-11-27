@@ -3,11 +3,13 @@
   "properties": {
     "count": 49,
     "status_counts": {
-      "complete": 32,
-      "needs_survey": 16,
+      "complete": 45,
+      "needs_survey": 3,
       "place": 1
     },
-    "note": "미확인 값은 비워 둔다(state=unknown, amount=null). 0이나 가정값으로 채우지 않는다."
+    "assumed_unknown_as_no": true,
+    "assumed_features": 15,
+    "note": "'모름'은 '없음'으로 읽음(팀 결정). 해당 값에 assumed=true, 원래 입력은 recorded_as. '있음'인데 잰 값이 없으면 amount=null로 비워 둔다."
   },
   "features": [
     {
@@ -27,6 +29,12 @@
         "building_id": "osm_way_377561220",
         "building_name": "언더우드 기념도서관",
         "entrance_name": "1층 출입문",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -67,6 +75,12 @@
         "building_id": "osm_way_377561222",
         "building_name": "진리관 B",
         "entrance_name": "양쪽 문 2개",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -102,20 +116,27 @@
       "properties": {
         "id": "31b6c063-084e-457a-b6a4-eb158253a050",
         "kind": "entrance",
-        "status": "needs_survey",
-        "missing": [
-          "문턱"
-        ],
+        "status": "complete",
+        "missing": [],
         "building_id": "osm_way_478869582",
         "building_name": "송도학사 D",
         "entrance_name": "출입문",
+        "assumed": [
+          "문턱"
+        ],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "unknown",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
         },
         "threshold_cm": {
-          "state": "unknown",
-          "amount": null
+          "state": "no",
+          "amount": 0,
+          "assumed": true
         },
         "ramp": "no",
         "door_type": "automatic",
@@ -144,24 +165,32 @@
       "properties": {
         "id": "7c37af39-6864-404a-9623-c8980c5f4360",
         "kind": "entrance",
-        "status": "needs_survey",
-        "missing": [
+        "status": "complete",
+        "missing": [],
+        "building_id": "osm_way_472542679",
+        "building_name": "송도학사 E",
+        "entrance_name": "송도학사 E동 출입문",
+        "assumed": [
           "계단",
           "문턱",
           "경사로"
         ],
-        "building_id": "osm_way_472542679",
-        "building_name": "송도학사 E",
-        "entrance_name": "송도학사 E동 출입문",
+        "recorded_as": {
+          "stairs": "unknown",
+          "threshold": "unknown",
+          "ramp": "unknown"
+        },
         "stairs": {
-          "state": "unknown",
-          "amount": null
+          "state": "no",
+          "amount": 0,
+          "assumed": true
         },
         "threshold_cm": {
-          "state": "unknown",
-          "amount": null
+          "state": "no",
+          "amount": 0,
+          "assumed": true
         },
-        "ramp": "unknown",
+        "ramp": "no",
         "door_type": "push",
         "opening_hours": null,
         "note": "당기고 미는 문 모두 가능",
@@ -193,6 +222,12 @@
         "building_id": "osm_way_478869582",
         "building_name": "송도학사 D",
         "entrance_name": "송도학사 D-1동",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -233,6 +268,12 @@
         "building_id": "osm_relation_14607664",
         "building_name": "송도학사 F",
         "entrance_name": "송도 학사 F동",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -273,6 +314,12 @@
         "building_id": "osm_way_318063115",
         "building_name": "송도학사 G",
         "entrance_name": "송도 학사 G동",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -308,23 +355,30 @@
       "properties": {
         "id": "623d7858-2411-4ac5-ac5f-8a06e5335c94",
         "kind": "entrance",
-        "status": "needs_survey",
-        "missing": [
-          "계단",
-          "경사로"
-        ],
+        "status": "complete",
+        "missing": [],
         "building_id": "osm_way_1098131937",
         "building_name": "지혜관 C",
         "entrance_name": "DFK",
+        "assumed": [
+          "계단",
+          "경사로"
+        ],
+        "recorded_as": {
+          "stairs": "unknown",
+          "threshold": "yes",
+          "ramp": "unknown"
+        },
         "stairs": {
-          "state": "unknown",
-          "amount": null
+          "state": "no",
+          "amount": 0,
+          "assumed": true
         },
         "threshold_cm": {
           "state": "yes",
           "amount": 5
         },
-        "ramp": "unknown",
+        "ramp": "no",
         "door_type": "pull",
         "opening_hours": "수업에 따라 상이",
         "note": "손가락 두 마디 가량의 문턱",
@@ -356,6 +410,12 @@
         "building_id": "osm_way_377561222",
         "building_name": "진리관 B",
         "entrance_name": "진리관 B 당기는 문 + 고정문 하나",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "yes",
+          "ramp": "yes"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -396,6 +456,12 @@
         "building_id": "osm_way_377561221",
         "building_name": "진리관 A",
         "entrance_name": "당기는 문 하나 + 고정문 하나",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -431,24 +497,32 @@
       "properties": {
         "id": "b10f4c1f-23dd-4dbb-97f3-97d8d7296367",
         "kind": "entrance",
-        "status": "needs_survey",
-        "missing": [
+        "status": "complete",
+        "missing": [],
+        "building_id": "osm_way_377561221",
+        "building_name": "진리관 A",
+        "entrance_name": "출입문 3개 모두 같은 조합",
+        "assumed": [
           "계단",
           "문턱",
           "경사로"
         ],
-        "building_id": "osm_way_377561221",
-        "building_name": "진리관 A",
-        "entrance_name": "출입문 3개 모두 같은 조합",
+        "recorded_as": {
+          "stairs": "unknown",
+          "threshold": "unknown",
+          "ramp": "unknown"
+        },
         "stairs": {
-          "state": "unknown",
-          "amount": null
+          "state": "no",
+          "amount": 0,
+          "assumed": true
         },
         "threshold_cm": {
-          "state": "unknown",
-          "amount": null
+          "state": "no",
+          "amount": 0,
+          "assumed": true
         },
-        "ramp": "unknown",
+        "ramp": "no",
         "door_type": "pull",
         "opening_hours": null,
         "note": null,
@@ -480,6 +554,12 @@
         "building_id": "osm_way_377561221",
         "building_name": "진리관 A",
         "entrance_name": "고정문 1개",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -520,6 +600,12 @@
         "building_id": "osm_way_377561221",
         "building_name": "진리관 A",
         "entrance_name": "암묵적 흡연구역",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "yes",
+          "threshold": "no",
+          "ramp": "yes"
+        },
         "stairs": {
           "state": "yes",
           "amount": 1
@@ -560,6 +646,12 @@
         "building_id": "osm_way_1096854782",
         "building_name": "자유관 A",
         "entrance_name": "자유관A 출입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -600,6 +692,12 @@
         "building_id": "osm_way_1096854782",
         "building_name": "자유관 A",
         "entrance_name": "자유관A 출입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -643,6 +741,12 @@
         "building_id": "osm_way_1096854782",
         "building_name": "자유관 A",
         "entrance_name": "자유관A 계단실 출입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "yes",
+          "threshold": "yes",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "yes",
           "amount": null
@@ -678,23 +782,30 @@
       "properties": {
         "id": "eeaf81aa-b99b-4204-9fec-ef4eff86c4a7",
         "kind": "entrance",
-        "status": "needs_survey",
-        "missing": [
-          "계단",
-          "경사로"
-        ],
+        "status": "complete",
+        "missing": [],
         "building_id": "osm_way_1096854782",
         "building_name": "자유관 A",
         "entrance_name": "지하 연결 자유관 A 계단 출입구",
+        "assumed": [
+          "계단",
+          "경사로"
+        ],
+        "recorded_as": {
+          "stairs": "unknown",
+          "threshold": "yes",
+          "ramp": "unknown"
+        },
         "stairs": {
-          "state": "unknown",
-          "amount": null
+          "state": "no",
+          "amount": 0,
+          "assumed": true
         },
         "threshold_cm": {
           "state": "yes",
           "amount": 15
         },
-        "ramp": "unknown",
+        "ramp": "no",
         "door_type": "pull",
         "opening_hours": null,
         "note": null,
@@ -721,13 +832,19 @@
       "properties": {
         "id": "51edc000-e18c-400c-8eee-8df48d4ca828",
         "kind": "entrance",
-        "status": "needs_survey",
-        "missing": [
-          "경사로"
-        ],
+        "status": "complete",
+        "missing": [],
         "building_id": "osm_way_377561217",
         "building_name": "자유관 B",
         "entrance_name": "자유관B 계단실과 건물통로",
+        "assumed": [
+          "경사로"
+        ],
+        "recorded_as": {
+          "stairs": "yes",
+          "threshold": "no",
+          "ramp": "unknown"
+        },
         "stairs": {
           "state": "yes",
           "amount": 2
@@ -736,7 +853,7 @@
           "state": "no",
           "amount": 0
         },
-        "ramp": "unknown",
+        "ramp": "no",
         "door_type": "pull",
         "opening_hours": null,
         "note": "계단 두단으로 되어있음",
@@ -768,6 +885,12 @@
         "building_id": "osm_way_377561217",
         "building_name": "자유관 B",
         "entrance_name": "양쪽으로 통행 가능",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "yes"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -808,6 +931,12 @@
         "building_id": "osm_way_377561217",
         "building_name": "자유관 B",
         "entrance_name": "자유관B 양방향문",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -848,6 +977,12 @@
         "building_id": "osm_way_377505228",
         "building_name": "송도학사 A",
         "entrance_name": "송도학사 A 출입문",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -888,6 +1023,12 @@
         "building_id": "osm_way_377505229",
         "building_name": "송도학사 C",
         "entrance_name": "송도학사 C 출입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -928,6 +1069,12 @@
         "building_id": "osm_way_377505230",
         "building_name": "송도학사 B",
         "entrance_name": "송도학사 B동 출입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -968,6 +1115,12 @@
         "building_id": "osm_way_1432706273",
         "building_name": "양자융합연구센터",
         "entrance_name": "양자융합연구센터 출입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1008,6 +1161,12 @@
         "building_id": "osm_way_1432706273",
         "building_name": "양자융합연구센터",
         "entrance_name": "양자융합연구센터 출입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1045,19 +1204,27 @@
         "kind": "entrance",
         "status": "needs_survey",
         "missing": [
-          "계단 단수",
-          "문턱"
+          "계단 단수"
         ],
         "building_id": "osm_way_1432706273",
         "building_name": "양자융합연구센터",
         "entrance_name": "양자융합연구센터 지하 1층",
+        "assumed": [
+          "문턱"
+        ],
+        "recorded_as": {
+          "stairs": "yes",
+          "threshold": "unknown",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "yes",
           "amount": null
         },
         "threshold_cm": {
-          "state": "unknown",
-          "amount": null
+          "state": "no",
+          "amount": 0,
+          "assumed": true
         },
         "ramp": "no",
         "door_type": "automatic",
@@ -1088,19 +1255,27 @@
         "kind": "entrance",
         "status": "needs_survey",
         "missing": [
-          "계단 단수",
-          "문턱"
+          "계단 단수"
         ],
         "building_id": "osm_way_1432706273",
         "building_name": "양자융합연구센터",
         "entrance_name": "양자융합연구센터 지하 1층",
+        "assumed": [
+          "문턱"
+        ],
+        "recorded_as": {
+          "stairs": "yes",
+          "threshold": "unknown",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "yes",
           "amount": null
         },
         "threshold_cm": {
-          "state": "unknown",
-          "amount": null
+          "state": "no",
+          "amount": 0,
+          "assumed": true
         },
         "ramp": "no",
         "door_type": "automatic",
@@ -1129,23 +1304,30 @@
       "properties": {
         "id": "eb578ea4-2c00-4d51-9fb7-91cbcb7198bf",
         "kind": "entrance",
-        "status": "needs_survey",
-        "missing": [
-          "문턱",
-          "경사로"
-        ],
+        "status": "complete",
+        "missing": [],
         "building_id": "osm_way_1096854782",
         "building_name": "자유관 A",
         "entrance_name": "자유관 A 계단 출입구",
+        "assumed": [
+          "문턱",
+          "경사로"
+        ],
+        "recorded_as": {
+          "stairs": "yes",
+          "threshold": "unknown",
+          "ramp": "unknown"
+        },
         "stairs": {
           "state": "yes",
           "amount": 2
         },
         "threshold_cm": {
-          "state": "unknown",
-          "amount": null
+          "state": "no",
+          "amount": 0,
+          "assumed": true
         },
-        "ramp": "unknown",
+        "ramp": "no",
         "door_type": "pull",
         "opening_hours": null,
         "note": "휠체어 사용시 우회 필요",
@@ -1172,23 +1354,30 @@
       "properties": {
         "id": "52279563-d4f8-4a7e-91a7-e85b9d3a171e",
         "kind": "entrance",
-        "status": "needs_survey",
-        "missing": [
-          "문턱",
-          "경사로"
-        ],
+        "status": "complete",
+        "missing": [],
         "building_id": "osm_way_1096854782",
         "building_name": "자유관 A",
         "entrance_name": "자유관 A 계단 출입구",
+        "assumed": [
+          "문턱",
+          "경사로"
+        ],
+        "recorded_as": {
+          "stairs": "yes",
+          "threshold": "unknown",
+          "ramp": "unknown"
+        },
         "stairs": {
           "state": "yes",
           "amount": 2
         },
         "threshold_cm": {
-          "state": "unknown",
-          "amount": null
+          "state": "no",
+          "amount": 0,
+          "assumed": true
         },
-        "ramp": "unknown",
+        "ramp": "no",
         "door_type": "pull",
         "opening_hours": null,
         "note": "휠체어 사용시 우회 필요",
@@ -1220,6 +1409,12 @@
         "building_id": "osm_way_478869586",
         "building_name": "종합관",
         "entrance_name": "자동문과 미닫이 두 개 존재",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1255,13 +1450,19 @@
       "properties": {
         "id": "eef9d65c-b8d0-4507-857a-2d8184472537",
         "kind": "entrance",
-        "status": "needs_survey",
-        "missing": [
-          "경사로"
-        ],
+        "status": "complete",
+        "missing": [],
         "building_id": "osm_way_478869586",
         "building_name": "종합관",
         "entrance_name": "종합관 문턱/계단 존재 출입구",
+        "assumed": [
+          "경사로"
+        ],
+        "recorded_as": {
+          "stairs": "yes",
+          "threshold": "no",
+          "ramp": "unknown"
+        },
         "stairs": {
           "state": "yes",
           "amount": 1
@@ -1270,7 +1471,7 @@
           "state": "no",
           "amount": 0
         },
-        "ramp": "unknown",
+        "ramp": "no",
         "door_type": "pull",
         "opening_hours": null,
         "note": "정문 출입시 가장 가까우나 휠체어 접근 용이하지 않음",
@@ -1297,13 +1498,19 @@
       "properties": {
         "id": "9938aff6-7aec-49ee-b7f7-42f675aa0dcb",
         "kind": "entrance",
-        "status": "needs_survey",
-        "missing": [
-          "경사로"
-        ],
+        "status": "complete",
+        "missing": [],
         "building_id": "osm_way_478869586",
         "building_name": "종합관",
         "entrance_name": "종합관 문턱/계단 존재 출입구",
+        "assumed": [
+          "경사로"
+        ],
+        "recorded_as": {
+          "stairs": "yes",
+          "threshold": "no",
+          "ramp": "unknown"
+        },
         "stairs": {
           "state": "yes",
           "amount": 1
@@ -1312,7 +1519,7 @@
           "state": "no",
           "amount": 0
         },
-        "ramp": "unknown",
+        "ramp": "no",
         "door_type": "pull",
         "opening_hours": null,
         "note": "정문 출입시 가장 가까우나 휠체어 접근 용이하지 않음",
@@ -1344,6 +1551,12 @@
         "building_id": "osm_way_478869585",
         "building_name": "진리관 C",
         "entrance_name": "진리관 C 출입구2",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1384,6 +1597,12 @@
         "building_id": "osm_way_478869585",
         "building_name": "진리관 C",
         "entrance_name": "진리관 C 출입구2",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1424,6 +1643,12 @@
         "building_id": "osm_way_478869584",
         "building_name": "진리관 D",
         "entrance_name": "진리관 C 입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1464,6 +1689,12 @@
         "building_id": "osm_way_1096167991",
         "building_name": "에스엘바이젠산학협력관",
         "entrance_name": "에스엘바이젠산학협력관 입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1499,23 +1730,30 @@
       "properties": {
         "id": "412e9bb7-e436-4ff4-aa6e-9b6d6931c845",
         "kind": "entrance",
-        "status": "needs_survey",
-        "missing": [
-          "문턱",
-          "경사로"
-        ],
+        "status": "complete",
+        "missing": [],
         "building_id": "osm_way_1096167991",
         "building_name": "에스엘바이젠산학협력관",
         "entrance_name": "에스엘바이젠산합협력관 계단문",
+        "assumed": [
+          "문턱",
+          "경사로"
+        ],
+        "recorded_as": {
+          "stairs": "yes",
+          "threshold": "unknown",
+          "ramp": "unknown"
+        },
         "stairs": {
           "state": "yes",
           "amount": 2
         },
         "threshold_cm": {
-          "state": "unknown",
-          "amount": null
+          "state": "no",
+          "amount": 0,
+          "assumed": true
         },
-        "ramp": "unknown",
+        "ramp": "no",
         "door_type": "pull",
         "opening_hours": "출입권한 필요",
         "note": "출입권한 필요",
@@ -1547,6 +1785,12 @@
         "building_id": "osm_way_384463544",
         "building_name": "지혜관 B",
         "entrance_name": "지혜관B 출입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "yes",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1587,6 +1831,12 @@
         "building_id": "osm_way_479492300",
         "building_name": "크리스틴 채플",
         "entrance_name": "채플 출입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1622,13 +1872,19 @@
       "properties": {
         "id": "650bab3f-29d7-4664-bab3-5ff6ce17d8c0",
         "kind": "entrance",
-        "status": "needs_survey",
-        "missing": [
-          "경사로"
-        ],
+        "status": "complete",
+        "missing": [],
         "building_id": "osm_way_377645830",
         "building_name": "파워플랜트",
         "entrance_name": "파워플랜트 출입구",
+        "assumed": [
+          "경사로"
+        ],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "yes",
+          "ramp": "unknown"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1637,7 +1893,7 @@
           "state": "yes",
           "amount": 2
         },
-        "ramp": "unknown",
+        "ramp": "no",
         "door_type": "pull",
         "opening_hours": null,
         "note": null,
@@ -1669,6 +1925,12 @@
         "building_id": "osm_way_377645831",
         "building_name": "저에너지환경실험주택",
         "entrance_name": "저에너지환경실험주택",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1709,6 +1971,12 @@
         "building_id": "osm_way_377645831",
         "building_name": "저에너지환경실험주택",
         "entrance_name": "양방향 이중문",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "yes",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1749,6 +2017,12 @@
         "building_id": "osm_way_523772218",
         "building_name": "포스코그린빌딩",
         "entrance_name": "포스코그린빌딩 입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "yes",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1789,6 +2063,12 @@
         "building_id": "osm_way_523772218",
         "building_name": "포스코그린빌딩",
         "entrance_name": "포스코그린빌딩 출입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1829,6 +2109,12 @@
         "building_id": "osm_way_523772218",
         "building_name": "포스코그린빌딩",
         "entrance_name": "포스코그린빌딩 출입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1869,6 +2155,12 @@
         "building_id": "osm_way_478869586",
         "building_name": "종합관",
         "entrance_name": "셔틀버스 탑승위치",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1904,20 +2196,27 @@
       "properties": {
         "id": "df064cdf-7537-41ee-ab5c-946ed8eb9eaa",
         "kind": "entrance",
-        "status": "needs_survey",
-        "missing": [
-          "문턱"
-        ],
+        "status": "complete",
+        "missing": [],
         "building_id": "osm_way_377505233",
         "building_name": "국제캠퍼스 기념관",
         "entrance_name": "국제캠퍼스 기념관 출입구",
+        "assumed": [
+          "문턱"
+        ],
+        "recorded_as": {
+          "stairs": "yes",
+          "threshold": "unknown",
+          "ramp": "yes"
+        },
         "stairs": {
           "state": "yes",
           "amount": 7
         },
         "threshold_cm": {
-          "state": "unknown",
-          "amount": null
+          "state": "no",
+          "amount": 0,
+          "assumed": true
         },
         "ramp": "yes",
         "door_type": "pull",
@@ -1951,6 +2250,12 @@
         "building_id": "osm_way_377561218",
         "building_name": "지혜관 A",
         "entrance_name": "지혜관 A 출입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0
@@ -1991,6 +2296,12 @@
         "building_id": "osm_way_1432706273",
         "building_name": "양자융합연구센터",
         "entrance_name": "양자융합연구센터 자동문 출입구",
+        "assumed": [],
+        "recorded_as": {
+          "stairs": "no",
+          "threshold": "no",
+          "ramp": "no"
+        },
         "stairs": {
           "state": "no",
           "amount": 0

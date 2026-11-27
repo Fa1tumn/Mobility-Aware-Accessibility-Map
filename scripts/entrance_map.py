@@ -25,6 +25,7 @@ def main(argv=None) -> int:
     parser.add_argument("--geojson", type=Path, default=ROOT / "data/campus/entrances.geojson")
     parser.add_argument("--html", type=Path, default=ROOT / "output/entrances/entrance_map.html")
     parser.add_argument("--buildings", type=Path, default=ROOT / "web/entrance/buildings.json")
+    parser.add_argument("--strict", action="store_true", help="'모름'을 '없음'으로 읽지 않기")
     args = parser.parse_args(argv)
     try:
         from dotenv import load_dotenv
@@ -38,7 +39,7 @@ def main(argv=None) -> int:
             records = fetch_entrances()
             args.save_raw.parent.mkdir(parents=True, exist_ok=True)
             args.save_raw.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
-        collection = build_collection(records, photo_base)
+        collection = build_collection(records, photo_base, args.strict)
         args.geojson.parent.mkdir(parents=True, exist_ok=True)
         args.geojson.write_text(json.dumps(collection, ensure_ascii=False, indent=2), encoding="utf-8")
         buildings = json.loads(args.buildings.read_text(encoding="utf-8"))["buildings"]

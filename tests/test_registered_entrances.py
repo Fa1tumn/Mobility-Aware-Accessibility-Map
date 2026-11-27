@@ -68,10 +68,22 @@ def test_link_can_use_entrance_node_id():
     assert reviews[0].status == "attached"
 
 
-def test_unknown_values_are_not_replaced():
+def test_unknown_read_as_no_by_default_and_recorded():
+    g = walkway()
+    rec = record("45454545", 38, 6, stairs="unknown", threshold="unknown", ramp="unknown")
+    _, reviews = attach_entrances(g, [rec], links={"45454545": "B"})
+    r = reviews[0]
+    edge = g.edges[r.node_id]
+    assert r.status == "attached" and r.assumed == ["계단", "문턱", "경사로"]
+    assert (edge.stairs, edge.threshold_cm, edge.ramp) == (0, 0.0, False)
+    assert "가정(모름→없음)" in edge.note
+    assert rec["stairs"] == "unknown"                        # 원본은 그대로
+
+
+def test_unknown_values_are_not_replaced_in_strict_mode():
     g = walkway()
     rec = record("44444444", 38, 6, stairs="unknown", threshold="unknown", ramp="unknown")
-    _, reviews = attach_entrances(g, [rec], links={"44444444": "B"})
+    _, reviews = attach_entrances(g, [rec], links={"44444444": "B"}, strict=True)
     r = reviews[0]
     assert r.status == "needs_survey"
     assert r.missing == ["계단", "문턱", "경사로"]
@@ -131,7 +143,7 @@ def test_import_script_writes_review_and_skips_graph_without_confirmation(tmp_pa
     g = walkway()
     save_geojson(g, tmp_path / "g.geojson")
     (tmp_path / "rec.json").write_text(json.dumps([record("abcdef12", 38, 6, threshold="unknown")]), encoding="utf-8")
-    code = import_main(["--input", str(tmp_path / "rec.json"), "--graph", str(tmp_path / "g.geojson"),
+    code = import_main(["--strict", "--input", str(tmp_path / "rec.json"), "--graph", str(tmp_path / "g.geojson"),
                         "--links", str(tmp_path / "none.json"), "--review", str(tmp_path / "review.json"),
                         "--out-graph", str(tmp_path / "out.geojson"), "--out-buildings", str(tmp_path / "b.json")])
     assert code == 0
