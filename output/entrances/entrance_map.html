@@ -57,8 +57,7 @@ document.getElementById("title").textContent = data.title;
 const c = data.entrances.properties.status_counts;
 document.getElementById("summary").textContent =
   `출입구·장소 ${features.length}곳 · 값 확인됨 ${c.complete || 0} · 현장 보완 필요 ${c.needs_survey || 0} · 장소 ${c.place || 0} · 건물 ${new Set(features.map(f => f.properties.building_id)).size}개` +
-  ` · 휠체어 추천 제외 ${data.entrances.properties.wheelchair_excluded} (빨간 테두리)` +
-  (data.entrances.properties.assumed_unknown_as_no ? ` · '모름'을 '없음'으로 가정한 곳 ${data.entrances.properties.assumed_features} (* 표시)` : "");
+  ` · 휠체어 추천 제외 ${data.entrances.properties.wheelchair_excluded} (빨간 테두리)`;
 
 const map = L.map("map", {maxZoom: 21});
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 21, maxNativeZoom: 19, attribution: "&copy; OpenStreetMap"}).addTo(map);
@@ -79,7 +78,7 @@ for (const b of data.buildings) {
   }
 }
 
-function amount(v, unit) { const t = v.state === "yes" ? (v.amount == null ? "있음 (값 미입력)" : `있음 ${v.amount}${unit}`) : YN[v.state]; return v.assumed ? t + "*" : t; }
+function amount(v, unit) { const t = v.state === "yes" ? (v.amount == null ? "있음 (값 미입력)" : `있음 ${v.amount}${unit}`) : YN[v.state]; return t; }   // '모름'은 팀 결정대로 '없음'으로 보이고 따로 표시하지 않는다
 function describe(p) {
   return [
     `계단 ${amount(p.stairs, "단")} · 문턱 ${amount(p.threshold_cm, "cm")} · 경사로 ${YN[p.ramp]}`,
@@ -104,7 +103,6 @@ for (const f of features.slice().sort((a, b) => (a.properties.building_name || "
   if (p.wheelchair) { const d = document.createElement("div"); d.className = "line " + (p.wheelchair.recommended ? "wc-yes" : "wc-no");
     d.textContent = p.wheelchair.recommended ? "휠체어 추천 가능" : "휠체어 추천 제외: " + p.wheelchair.reasons.join(", "); box.append(d); }
   if (p.unmeasured && p.unmeasured.length) { const d = document.createElement("div"); d.className = "line"; d.textContent = "미측정(판정에는 영향 없음): " + p.unmeasured.join(", "); box.append(d); }
-  if (p.assumed && p.assumed.length) { const d = document.createElement("div"); d.className = "line"; d.textContent = "* 모름 → 없음으로 가정: " + p.assumed.join(", "); box.append(d); }
   if (p.photo_url) { const img = document.createElement("img"); img.src = p.photo_url; img.loading = "lazy"; img.style.cssText = "width:220px;border-radius:6px;margin-top:6px"; box.append(img); }
   marker.bindPopup(box, {maxWidth: 260});
   markers[p.id] = marker;
