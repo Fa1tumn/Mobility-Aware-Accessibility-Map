@@ -249,7 +249,10 @@ async function flush() {
   let lastError = "";
   try {
     for (const item of await queueAll()) {
-      try { await uploadOne(item); } catch (e) { lastError = e.message; break; }
+      try { await uploadOne(item); } catch (e) {
+        lastError = e instanceof TypeError ? `서버에 연결하지 못했습니다 (${CONFIG.url}). 주소·통신을 확인하세요.` : e.message;
+        break;
+      }
     }
   } finally {
     flushing = false;
@@ -257,15 +260,19 @@ async function flush() {
     if (!lastError) loadDone();
   }
 }
+let lastUploadError = "";
 async function updateQueueBadge(error) {
   const n = (await queueAll()).length;
   const b = document.getElementById("queue");
-  b.hidden = n === 0 && !error;
-  b.textContent = n ? `전송 대기 ${n}건` : "";
-  b.title = error || "";
-  if (error && n) b.textContent += " · 다시 시도";
+  lastUploadError = n ? (error || lastUploadError) : "";
+  b.hidden = n === 0;
+  b.textContent = n ? `전송 대기 ${n}건` + (lastUploadError ? " · 눌러서 다시 시도" : "") : "";
+  if (lastUploadError && n) setStatus("업로드 실패: " + lastUploadError, "err");
 }
-document.getElementById("queue").onclick = flush;
+document.getElementById("queue").onclick = async () => {
+  if (lastUploadError) alert("마지막 업로드 오류\n" + lastUploadError + "\n\n확인을 누르면 다시 올립니다.");
+  await flush();
+};
 window.addEventListener("online", flush);
 
 async function loadDone() {
@@ -345,7 +352,9 @@ function renderBuilding() {
   search.addEventListener("input", fill);
   fill();
   const chosen = el("div", {class: "status"}, state.building ? `선택: ${state.building.name}` : "선택한 건물 없음");
-  sheet.append(search, list, chosen, nav("다음: 출입구 위치", !!state.building));
+  const info = el("p", {class: "small"}, `연결: ${CONFIG.url.replace(/^https:\/\//, "")} · 키 ${CONFIG.key.slice(0, 15)}… `);
+  info.append(el("a", {href: "#", on: {click: ev => { ev.preventDefault(); if (confirm("연결 설정을 지우고 다시 입력할까요? (전송 대기 기록은 남습니다)")) { localStorage.removeItem("entrance.config"); CONFIG = null; render(); } }}}, "설정 바꾸기"));
+  sheet.append(search, list, chosen, nav("다음: 출입구 위치", !!state.building), info);
 }
 
 function renderPinStatus() {
