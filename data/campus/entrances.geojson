@@ -1,14 +1,14 @@
 {
   "type": "FeatureCollection",
   "properties": {
-    "count": 52,
+    "count": 46,
     "status_counts": {
-      "complete": 51,
+      "complete": 45,
       "place": 1
     },
-    "wheelchair_excluded": 19,
+    "wheelchair_excluded": 16,
     "assumed_unknown_as_no": true,
-    "assumed_features": 17,
+    "assumed_features": 14,
     "note": "'모름'은 '없음'으로 읽음(팀 결정). 해당 값에 assumed=true, 원래 입력은 recorded_as. '있음'인데 잰 값이 없으면 amount=null로 비워 둔다."
   },
   "features": [
@@ -1281,57 +1281,6 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          126.668454632163,
-          37.3821067774732
-        ]
-      },
-      "properties": {
-        "id": "5f92753c-6c9a-4da3-b643-bd5e54c2724a",
-        "kind": "entrance",
-        "status": "complete",
-        "missing": [],
-        "unmeasured": [],
-        "wheelchair": {
-          "recommended": true,
-          "reasons": []
-        },
-        "building_id": "osm_way_1432706273",
-        "building_name": "양자융합연구센터",
-        "entrance_name": "양자융합연구센터 출입구",
-        "assumed": [],
-        "recorded_as": {
-          "stairs": "no",
-          "threshold": "no",
-          "ramp": "no"
-        },
-        "stairs": {
-          "state": "no",
-          "amount": 0
-        },
-        "threshold_cm": {
-          "state": "no",
-          "amount": 0
-        },
-        "ramp": "no",
-        "door_type": "automatic",
-        "opening_hours": "평일 9:00-18:00 (양자정보학과 제외 교내 구성원)",
-        "note": "이용가능공간: 지하 1층 라운지, 1층 라운지",
-        "photo_url": "https://vptvvtxqqocpaepziqmz.supabase.co/storage/v1/object/public/entrance-photos/2026-11-27/5f92753c-6c9a-4da3-b643-bd5e54c2724a.jpg",
-        "gps": {
-          "lat": 37.3821127684104,
-          "lon": 126.668449714027,
-          "accuracy_m": 4.94927488237946
-        },
-        "pin_moved_m": 0.8,
-        "recorded_at": "2026-11-27T08:23:19.237+00:00",
-        "recorder": "전현지"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
           126.668372824788,
           37.3821099730917
         ]
@@ -1437,63 +1386,6 @@
         },
         "pin_moved_m": 13.6,
         "recorded_at": "2026-11-27T08:27:17.999+00:00",
-        "recorder": "전현지"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          126.669182181358,
-          37.3823945913373
-        ]
-      },
-      "properties": {
-        "id": "52279563-d4f8-4a7e-91a7-e85b9d3a171e",
-        "kind": "entrance",
-        "status": "complete",
-        "missing": [],
-        "unmeasured": [],
-        "wheelchair": {
-          "recommended": false,
-          "reasons": [
-            "계단 2단"
-          ]
-        },
-        "building_id": "osm_way_1096854782",
-        "building_name": "자유관 A",
-        "entrance_name": "자유관 A 계단 출입구",
-        "assumed": [
-          "문턱",
-          "경사로"
-        ],
-        "recorded_as": {
-          "stairs": "yes",
-          "threshold": "unknown",
-          "ramp": "unknown"
-        },
-        "stairs": {
-          "state": "yes",
-          "amount": 2
-        },
-        "threshold_cm": {
-          "state": "no",
-          "amount": 0,
-          "assumed": true
-        },
-        "ramp": "no",
-        "door_type": "pull",
-        "opening_hours": null,
-        "note": "휠체어 사용시 우회 필요",
-        "photo_url": "https://vptvvtxqqocpaepziqmz.supabase.co/storage/v1/object/public/entrance-photos/2026-11-27/52279563-d4f8-4a7e-91a7-e85b9d3a171e.jpg",
-        "gps": {
-          "lat": 37.3822860836581,
-          "lon": 126.669111312807,
-          "accuracy_m": 4.97264754843516
-        },
-        "pin_moved_m": 13.6,
-        "recorded_at": "2026-11-27T08:27:21.746+00:00",
         "recorder": "전현지"
       }
     },
@@ -1608,61 +1500,6 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          126.669510751963,
-          37.3821682236307
-        ]
-      },
-      "properties": {
-        "id": "9938aff6-7aec-49ee-b7f7-42f675aa0dcb",
-        "kind": "entrance",
-        "status": "complete",
-        "missing": [],
-        "unmeasured": [],
-        "wheelchair": {
-          "recommended": false,
-          "reasons": [
-            "계단 1단"
-          ]
-        },
-        "building_id": "osm_way_478869586",
-        "building_name": "종합관",
-        "entrance_name": "종합관 문턱/계단 존재 출입구",
-        "assumed": [
-          "경사로"
-        ],
-        "recorded_as": {
-          "stairs": "yes",
-          "threshold": "no",
-          "ramp": "unknown"
-        },
-        "stairs": {
-          "state": "yes",
-          "amount": 1
-        },
-        "threshold_cm": {
-          "state": "no",
-          "amount": 0
-        },
-        "ramp": "no",
-        "door_type": "pull",
-        "opening_hours": null,
-        "note": "정문 출입시 가장 가까우나 휠체어 접근 용이하지 않음",
-        "photo_url": "https://vptvvtxqqocpaepziqmz.supabase.co/storage/v1/object/public/entrance-photos/2026-11-27/9938aff6-7aec-49ee-b7f7-42f675aa0dcb.jpg",
-        "gps": {
-          "lat": 37.3822711926721,
-          "lon": 126.669471473875,
-          "accuracy_m": 4.6644365919143
-        },
-        "pin_moved_m": 12,
-        "recorded_at": "2026-11-27T08:31:11.311+00:00",
-        "recorder": "전현지"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
           126.670826375484,
           37.3818869866989
         ]
@@ -1706,57 +1543,6 @@
         },
         "pin_moved_m": 16.2,
         "recorded_at": "2026-11-27T08:57:02.319+00:00",
-        "recorder": "전현지"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          126.670826375484,
-          37.3818869866989
-        ]
-      },
-      "properties": {
-        "id": "2e175412-d864-4a0e-ad06-a2e020f2737d",
-        "kind": "entrance",
-        "status": "complete",
-        "missing": [],
-        "unmeasured": [],
-        "wheelchair": {
-          "recommended": true,
-          "reasons": []
-        },
-        "building_id": "osm_way_478869585",
-        "building_name": "진리관 C",
-        "entrance_name": "진리관 C 출입구2",
-        "assumed": [],
-        "recorded_as": {
-          "stairs": "no",
-          "threshold": "no",
-          "ramp": "no"
-        },
-        "stairs": {
-          "state": "no",
-          "amount": 0
-        },
-        "threshold_cm": {
-          "state": "no",
-          "amount": 0
-        },
-        "ramp": "no",
-        "door_type": "pull",
-        "opening_hours": null,
-        "note": null,
-        "photo_url": "https://vptvvtxqqocpaepziqmz.supabase.co/storage/v1/object/public/entrance-photos/2026-11-27/2e175412-d864-4a0e-ad06-a2e020f2737d.jpg",
-        "gps": {
-          "lat": 37.3819732118058,
-          "lon": 126.67097392054,
-          "accuracy_m": 16.8069124594437
-        },
-        "pin_moved_m": 16.2,
-        "recorded_at": "2026-11-27T08:57:05.865+00:00",
         "recorder": "전현지"
       }
     },
@@ -2291,57 +2077,6 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          126.670766025782,
-          37.3795135911963
-        ]
-      },
-      "properties": {
-        "id": "53a40394-e3e3-4c09-bb81-5cedef589c7f",
-        "kind": "entrance",
-        "status": "complete",
-        "missing": [],
-        "unmeasured": [],
-        "wheelchair": {
-          "recommended": true,
-          "reasons": []
-        },
-        "building_id": "osm_way_523772218",
-        "building_name": "포스코그린빌딩",
-        "entrance_name": "포스코그린빌딩 출입구",
-        "assumed": [],
-        "recorded_as": {
-          "stairs": "no",
-          "threshold": "no",
-          "ramp": "no"
-        },
-        "stairs": {
-          "state": "no",
-          "amount": 0
-        },
-        "threshold_cm": {
-          "state": "no",
-          "amount": 0
-        },
-        "ramp": "no",
-        "door_type": "unknown",
-        "opening_hours": null,
-        "note": "휠체어 접근용이함",
-        "photo_url": "https://vptvvtxqqocpaepziqmz.supabase.co/storage/v1/object/public/entrance-photos/2026-11-27/53a40394-e3e3-4c09-bb81-5cedef589c7f.jpg",
-        "gps": {
-          "lat": 37.3795348988212,
-          "lon": 126.670796059329,
-          "accuracy_m": 4.895014
-        },
-        "pin_moved_m": 3.6,
-        "recorded_at": "2026-11-27T09:14:09.761+00:00",
-        "recorder": "전현지"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
           126.668724864721,
           37.3815542442452
         ]
@@ -2647,62 +2382,6 @@
         },
         "pin_moved_m": 3,
         "recorded_at": "2026-11-27T10:02:06.428+00:00",
-        "recorder": "전현지"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          126.670699641109,
-          37.3826258146983
-        ]
-      },
-      "properties": {
-        "id": "0eed076c-a845-4574-87df-8e66046c0dca",
-        "kind": "entrance",
-        "status": "complete",
-        "missing": [],
-        "unmeasured": [],
-        "wheelchair": {
-          "recommended": false,
-          "reasons": [
-            "계단 32단"
-          ]
-        },
-        "building_id": "osm_way_377561220",
-        "building_name": "언더우드 기념도서관",
-        "entrance_name": "언더우드기념도서관 지상 계단 출입구",
-        "assumed": [
-          "문턱"
-        ],
-        "recorded_as": {
-          "stairs": "yes",
-          "threshold": "unknown",
-          "ramp": "no"
-        },
-        "stairs": {
-          "state": "yes",
-          "amount": 32
-        },
-        "threshold_cm": {
-          "state": "no",
-          "amount": 0,
-          "assumed": true
-        },
-        "ramp": "no",
-        "door_type": "pull",
-        "opening_hours": "24시간",
-        "note": "휠체어 출입 불가능",
-        "photo_url": "https://vptvvtxqqocpaepziqmz.supabase.co/storage/v1/object/public/entrance-photos/2026-11-27/0eed076c-a845-4574-87df-8e66046c0dca.jpg",
-        "gps": {
-          "lat": 37.3826076598414,
-          "lon": 126.670674170876,
-          "accuracy_m": 3.51783296068426
-        },
-        "pin_moved_m": 3,
-        "recorded_at": "2026-11-27T10:02:10.837+00:00",
         "recorder": "전현지"
       }
     },
