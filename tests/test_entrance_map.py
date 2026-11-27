@@ -54,6 +54,7 @@ def test_wheelchair_exclusion_rules():
         rec("st", stairs="yes", stairs_count=2),
         rec("th", threshold="yes"),                                   # 높이 미측정
         rec("room", entrance_name="자유관A 계단실 출입구"),
+        rec("ramp", stairs="yes", stairs_count=7, threshold="yes", threshold_cm=5, ramp="yes"),
     ])
     p = {f["properties"]["id"]: f["properties"] for f in fc["features"]}
     assert p["ok"]["wheelchair"] == {"recommended": True, "reasons": []}
@@ -62,4 +63,5 @@ def test_wheelchair_exclusion_rules():
     assert p["th"]["status"] == "complete" and p["th"]["unmeasured"] == ["문턱 높이"]
     assert p["th"]["threshold_cm"]["amount"] is None                   # 높이를 지어내지 않음
     assert p["room"]["wheelchair"]["reasons"] == ["계단실 출입구"]
+    assert p["ramp"]["wheelchair"] == {"recommended": True, "reasons": []}   # 경사로로 우회 가능
     assert fc["properties"]["wheelchair_excluded"] == 3

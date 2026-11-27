@@ -40,7 +40,7 @@ aside{width:360px;border-left:1px solid #e2e8f0;overflow:auto;padding:10px 12px}
     <label><input type="checkbox" id="f-needs_survey" checked> 현장 보완 필요</label>
     <label><input type="checkbox" id="f-place" checked> 장소</label>
     <label><input type="checkbox" id="f-gps"> GPS 원래 위치 보기</label>
-    <label><input type="checkbox" id="f-wc"> 휠체어 추천 출입구만</label>
+    <label><input type="checkbox" id="f-wc"> 휠체어 접근 가능한 출입구만</label>
   </div>
 </header>
 <main class="workspace"><div id="map"></div><aside id="list"></aside></main>
@@ -57,7 +57,7 @@ document.getElementById("title").textContent = data.title;
 const c = data.entrances.properties.status_counts;
 document.getElementById("summary").textContent =
   `출입구·장소 ${features.length}곳 · 값 확인됨 ${c.complete || 0} · 현장 보완 필요 ${c.needs_survey || 0} · 장소 ${c.place || 0} · 건물 ${new Set(features.map(f => f.properties.building_id)).size}개` +
-  ` · 휠체어 추천 제외 ${data.entrances.properties.wheelchair_excluded} (빨간 테두리)`;
+  ` · 휠체어 사용자 접근 불편 ${data.entrances.properties.wheelchair_excluded} (빨간 테두리)`;
 
 const map = L.map("map", {maxZoom: 21});
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 21, maxNativeZoom: 19, attribution: "&copy; OpenStreetMap"}).addTo(map);
@@ -101,7 +101,7 @@ for (const f of features.slice().sort((a, b) => (a.properties.building_name || "
   for (const t of describe(p)) { const d = document.createElement("div"); d.className = "line"; d.textContent = t; box.append(d); }
   if (p.missing.length) { const d = document.createElement("div"); d.className = "line miss"; d.textContent = "미확인: " + p.missing.join(", "); box.append(d); }
   if (p.wheelchair) { const d = document.createElement("div"); d.className = "line " + (p.wheelchair.recommended ? "wc-yes" : "wc-no");
-    d.textContent = p.wheelchair.recommended ? "휠체어 추천 가능" : "휠체어 추천 제외: " + p.wheelchair.reasons.join(", "); box.append(d); }
+    d.textContent = p.wheelchair.recommended ? "휠체어 접근 가능" : "휠체어 사용자 접근 불편: " + p.wheelchair.reasons.join(", "); box.append(d); }
   if (p.unmeasured && p.unmeasured.length) { const d = document.createElement("div"); d.className = "line"; d.textContent = "미측정(판정에는 영향 없음): " + p.unmeasured.join(", "); box.append(d); }
   if (p.photo_url) { const img = document.createElement("img"); img.src = p.photo_url; img.loading = "lazy"; img.style.cssText = "width:220px;border-radius:6px;margin-top:6px"; box.append(img); }
   marker.bindPopup(box, {maxWidth: 260});
@@ -117,7 +117,7 @@ for (const f of features.slice().sort((a, b) => (a.properties.building_name || "
   head.append(tag, document.createTextNode(`${p.building_name} · ${p.entrance_name || ""}`));
   card.append(head);
   const line = document.createElement("div"); line.className = "line"; line.textContent = describe(p)[0]; card.append(line);
-  if (p.wheelchair && !p.wheelchair.recommended) { const d = document.createElement("div"); d.className = "line wc-no"; d.textContent = "휠체어 추천 제외: " + p.wheelchair.reasons.join(", "); card.append(d); }
+  if (p.wheelchair && !p.wheelchair.recommended) { const d = document.createElement("div"); d.className = "line wc-no"; d.textContent = "휠체어 사용자 접근 불편: " + p.wheelchair.reasons.join(", "); card.append(d); }
   card.dataset.wc = p.wheelchair && p.wheelchair.recommended ? "1" : "0";
   if (p.missing.length) { const d = document.createElement("div"); d.className = "line miss"; d.textContent = "미확인: " + p.missing.join(", "); card.append(d); }
   card.onclick = () => { for (const k in cards) cards[k].classList.remove("active"); card.classList.add("active"); map.setView([lat, lon], 19); marker.openPopup(); };

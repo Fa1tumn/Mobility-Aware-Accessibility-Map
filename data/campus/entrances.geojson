@@ -6,7 +6,7 @@
       "complete": 45,
       "place": 1
     },
-    "wheelchair_excluded": 16,
+    "wheelchair_excluded": 13,
     "assumed_unknown_as_no": true,
     "assumed_features": 14,
     "note": "'모름'은 '없음'으로 읽음(팀 결정). 해당 값에 assumed=true, 원래 입력은 recorded_as. '있음'인데 잰 값이 없으면 amount=null로 비워 둔다."
@@ -451,10 +451,8 @@
         "missing": [],
         "unmeasured": [],
         "wheelchair": {
-          "recommended": false,
-          "reasons": [
-            "문턱 5cm"
-          ]
+          "recommended": true,
+          "reasons": []
         },
         "building_id": "osm_way_377561222",
         "building_name": "진리관 B",
@@ -663,10 +661,8 @@
         "missing": [],
         "unmeasured": [],
         "wheelchair": {
-          "recommended": false,
-          "reasons": [
-            "계단 1단"
-          ]
+          "recommended": true,
+          "reasons": []
         },
         "building_id": "osm_way_377561221",
         "building_name": "진리관 A",
@@ -2136,10 +2132,8 @@
         "missing": [],
         "unmeasured": [],
         "wheelchair": {
-          "recommended": false,
-          "reasons": [
-            "계단 7단"
-          ]
+          "recommended": true,
+          "reasons": []
         },
         "building_id": "osm_way_377505233",
         "building_name": "국제캠퍼스 기념관",

@@ -10,8 +10,9 @@
     place         출입구가 아닌 장소 (메모가 "[장소]"로 시작)
 팀 결정에 따라 '모름'은 '없음'으로 읽고(assumed에 기록, 원본은 그대로), 잰 적 없는 숫자는 채우지 않는다.
 
-휠체어 추천 제외 (팀 결정 2026-11-27)
+휠체어 사용자 접근 불편 (팀 결정 2026-11-27)
     계단 있음 · 문턱 있음(높이와 상관없이) · 이름/메모에 '계단실' → wheelchair.recommended = False
+    단, 경사로가 있으면 계단·문턱을 피해 갈 수 있으므로 불편으로 보지 않는다.
     이 경우 계단 단수·문턱 높이를 안 쟀어도 휠체어 판정에는 충분하므로 needs_survey로 보지 않고,
     잰 적 없는 값은 unmeasured에 남긴다(amount는 null).
 """
@@ -43,6 +44,8 @@ def wheelchair_assessment(record: dict) -> dict:
     text = f"{record.get('entrance_name') or ''} {record.get('note') or ''}"
     if "계단실" in text:
         reasons.append("계단실 출입구")
+    if record.get("ramp") == "yes":
+        reasons = []                  # 경사로로 우회 가능
     return {"recommended": not reasons, "reasons": reasons}
 
 
