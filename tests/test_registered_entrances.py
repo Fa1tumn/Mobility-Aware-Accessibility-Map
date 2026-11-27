@@ -154,3 +154,21 @@ def test_campus_building_list_keeps_only_buildings_inside_campus():
     out = convert({"elements": [way(1, *inside, "진리관 A"), way(2, 37.40, 126.70, "캠퍼스 밖")]}, campus)
     assert [b["name"] for b in out] == ["진리관 A"]
     assert out[0]["id"] == "osm_way_1" and len(out[0]["outline"]) == 3
+
+
+def test_building_list_names_margin_and_apartment_filter():
+    campus = load_campus_grid()
+
+    def way(i, down, across, name=""):
+        lat, lon = campus.to_geographic(down, across)
+        d = 0.00005
+        tags = {"building": "yes"} | ({"name": name} if name else {})
+        return {"type": "way", "id": i, "tags": tags,
+                "geometry": [{"lat": lat, "lon": lon}, {"lat": lat + d, "lon": lon}, {"lat": lat, "lon": lon + d}]}
+
+    osm = {"elements": [way(1, 50, 50), way(2, -40, 50), way(3, -40, 60, "212"), way(4, -200, 50)]}
+    out = {b["id"]: b for b in convert(osm, campus, names={"1": "자유관"})}
+    assert out["osm_way_1"]["name"] == "자유관" and out["osm_way_1"]["named"]
+    assert "osm_way_2" in out and not out["osm_way_2"]["named"]       # 가장자리 60m 안
+    assert "osm_way_3" not in out                                      # 숫자 이름(아파트 동)
+    assert "osm_way_4" not in out                                      # 200m 밖

@@ -103,6 +103,8 @@ const LABEL = {yes: "있음", no: "없음", unknown: "모름"};
 const DOORS = [["automatic", "자동문"], ["button", "버튼식"], ["push", "미는 문"], ["pull", "당기는 문"],
                ["revolving", "회전문"], ["open", "문 없음"], ["unknown", "모름"]];
 let buildings = [];
+const knownNames = {};   // 이름 없는 건물에 등록 기록으로 붙은 이름 (building_id → 이름)
+const displayName = b => b.named ? b.name : (knownNames[b.id] || b.name);
 
 // ───────────────────────────── 지도
 const map = L.map("map", {zoomControl: false}).setView([37.3825, 126.6705], 17);
@@ -124,10 +126,10 @@ function drawBuildings() {
     const poly = L.polygon(b.outline.map(p => [p[1], p[0]]), styleFor(b.id)).addTo(buildingLayer);
     poly.on("click", () => { if (state.step === 0) selectBuilding(b); });
     polygons[b.id] = poly;
-    if (b.named) {
+    if (b.named || knownNames[b.id]) {
       L.marker([b.point[1], b.point[0]], {interactive: false,
         icon: L.divIcon({className: "bldg-label", html: "", iconSize: [80, 14], iconAnchor: [40, 7]})})
-        .addTo(buildingLayer).getElement().textContent = b.name;
+        .addTo(buildingLayer).getElement().textContent = displayName(b);
     }
   }
 }
@@ -303,11 +305,18 @@ window.addEventListener("online", flush);
 async function loadDone() {
   if (!CONFIG) return;
   try {
-    const q = "select=id,building_name,entrance_name,pin_lat,pin_lon,stairs,ramp,threshold,door_type,photo_path,recorded_at,recorder&order=recorded_at.desc&limit=1000";
+    const q = "select=id,building_id,building_name,entrance_name,pin_lat,pin_lon,stairs,ramp,threshold,door_type,photo_path,recorded_at,recorder&order=recorded_at.desc&limit=1000";
     const res = await fetch(`${base()}/rest/v1/${CONFIG.table}?${q}`, {headers: headers()});
     if (!res.ok) return;
     doneLayer.clearLayers();
-    for (const e of await res.json()) {
+    const rows = await res.json();
+    const before = JSON.stringify(knownNames);
+    for (const e of rows.slice().reverse()) {
+      const b = buildings.find(x => x.id === e.building_id);
+      if (b && !b.named && e.building_name) knownNames[b.id] = e.building_name;
+    }
+    if (JSON.stringify(knownNames) !== before) { drawBuildings(); if (state.step === 0) render(); }
+    for (const e of rows) {
       const m = L.marker([e.pin_lat, e.pin_lon], {icon: L.divIcon({className: "", html: '<div class="done-dot"></div>', iconSize: [14, 14], iconAnchor: [7, 7]})}).addTo(doneLayer);
       const box = document.createElement("div");
       const title = document.createElement("b");
@@ -355,7 +364,7 @@ function setStatus(text, cls) { if (statusBox) { statusBox.textContent = text; s
 function go(step) { state.step = step; render(); }
 
 function selectBuilding(b) {
-  state.building = {id: b.id, name: b.name};
+  state.building = {id: b.id, name: b.named ? b.name : (knownNames[b.id] || ""), unnamed: !b.named};
   refreshPolygons();
   map.fitBounds(polygons[b.id].getBounds(), {maxZoom: 19, padding: [30, 30]});
   render();
@@ -368,18 +377,28 @@ function renderBuilding() {
   const fill = () => {
     list.replaceChildren();
     const q = search.value.trim().replace(/\s+/g, "");
-    for (const b of buildings.filter(b => b.name.replace(/\s+/g, "").includes(q)).slice(0, 40)) {
-      list.append(el("li", {class: state.building && state.building.id === b.id ? "sel" : "", on: {click: () => selectBuilding(b)}}, b.name));
+    for (const b of buildings.filter(b => displayName(b).replace(/\s+/g, "").includes(q)).slice(0, 40)) {
+      list.append(el("li", {class: state.building && state.building.id === b.id ? "sel" : "", on: {click: () => selectBuilding(b)}}, displayName(b)));
     }
     if (q) list.append(el("li", {on: {click: () => { state.building = {id: null, name: search.value.trim()}; refreshPolygons(); render(); }}},
       `목록에 없음: "${search.value.trim()}"(으)로 등록`));
   };
   search.addEventListener("input", fill);
   fill();
-  const chosen = el("div", {class: "status"}, state.building ? `선택: ${state.building.name}` : "선택한 건물 없음");
+  const chosen = el("div", {class: "status"}, state.building ? `선택: ${state.building.name || "이름 없는 건물"}` : "선택한 건물 없음");
+  let nameBox = null;
+  if (state.building && state.building.unnamed) {
+    nameBox = el("div", {});
+    const input = el("input", {type: "text", placeholder: "현장에서 확인한 건물 이름 (예: 송도학사 F)", value: state.building.name,
+      on: {input: e => { state.building.name = e.target.value; chosen.textContent = `선택: ${e.target.value.trim() || "이름 없는 건물"}`;
+                         sheet.querySelector("button.primary").disabled = !e.target.value.trim(); }}});
+    nameBox.append(el("label", {class: "field"}, "지도에 이름이 없는 건물입니다. 건물 이름을 적어 주세요."), input);
+  }
   const info = el("p", {class: "small"}, `연결: ${CONFIG.url.replace(/^https:\/\//, "")} · 키 ${CONFIG.key.slice(0, 15)}… `);
   info.append(el("a", {href: "#", on: {click: ev => { ev.preventDefault(); if (confirm("연결 설정을 지우고 다시 입력할까요? (전송 대기 기록은 남습니다)")) { localStorage.removeItem("entrance.config"); CONFIG = null; render(); } }}}, "설정 바꾸기"));
-  sheet.append(search, list, chosen, nav("다음: 출입구 위치", !!state.building), info);
+  sheet.append(search, list, chosen);
+  if (nameBox) sheet.append(nameBox);
+  sheet.append(nav("다음: 출입구 위치", !!state.building && !!state.building.name.trim()), info);
 }
 
 function renderPinStatus() {
@@ -479,7 +498,7 @@ async function save() {
     id: crypto.randomUUID ? crypto.randomUUID() : ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)),
     recorded_at: new Date().toISOString(),
     recorder: (localStorage.getItem("entrance.recorder") || "").trim() || null,
-    building_id: s.building.id, building_name: s.building.name, entrance_name: s.entranceName.trim() || null,
+    building_id: s.building.id, building_name: s.building.name.trim(), entrance_name: s.entranceName.trim() || null,
     pin_lat: s.pin.lat, pin_lon: s.pin.lon,
     gps_lat: s.gps ? s.gps.lat : null, gps_lon: s.gps ? s.gps.lon : null,
     gps_accuracy_m: s.gps ? s.gps.accuracy : null, gps_time: s.gps ? s.gps.time : null,
@@ -529,7 +548,7 @@ function render() {
   [renderBuilding, renderPin, renderPhoto, renderState, renderSave][state.step]();
 }
 
-fetch("buildings.json").then(r => r.json()).then(d => { buildings = d.buildings; drawBuildings(); render(); })
+fetch("buildings.json").then(r => r.json()).then(d => { buildings = d.buildings; drawBuildings(); render(); loadDone(); })
   .catch(() => { render(); setStatus("건물 목록을 불러오지 못했습니다. 이름을 직접 입력하세요.", "err"); });
 render();
 updateQueueBadge();
