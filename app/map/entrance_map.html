@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>캠퍼스 출입구 지도</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;height:100vh;display:flex;flex-direction:column;font:14px -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;color:#0f172a}
+header{padding:12px 18px;border-bottom:1px solid #e2e8f0}
+h1{font-size:18px;margin:0 0 6px}
+#summary{color:#475569;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:13px}
+.workspace{flex:1;display:flex;min-height:0}
+#map{flex:1}
+aside{width:360px;border-left:1px solid #e2e8f0;overflow:auto;padding:10px 12px}
+.card{border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer}
+.card.active{border:2px solid #1d4ed8;padding:9px}
+.card b{display:block;margin-bottom:3px}
+.tag{display:inline-block;font-size:11px;border-radius:9px;padding:1px 7px;margin-right:4px;color:white}
+.complete{background:#16a34a}.needs_survey{background:#d97706}.place{background:#6366f1}
+.line{font-size:12px;color:#334155;line-height:1.55}
+.miss{color:#b45309}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px #333}
+.bldg-label{background:transparent;border:0;font-size:11px;font-weight:600;color:#1e3a8a;text-shadow:0 0 3px white,0 0 3px white;white-space:nowrap}
+.legend{background:white;padding:8px 10px;border-radius:6px;box-shadow:0 1px 4px #999;font-size:12px;line-height:1.8}
+@media(max-width:800px){.workspace{flex-direction:column}#map{height:55vh;flex:none}aside{width:100%;border-left:0;border-top:1px solid #e2e8f0}}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title"></h1>
+  <div id="summary"></div>
+  <div class="controls">
+    <label><input type="checkbox" id="f-complete" checked> 값 확인됨</label>
+    <label><input type="checkbox" id="f-needs_survey" checked> 현장 보완 필요</label>
+    <label><input type="checkbox" id="f-place" checked> 장소</label>
+    <label><input type="checkbox" id="f-gps"> GPS 원래 위치 보기</label>
+  </div>
+</header>
+<main class="workspace"><div id="map"></div><aside id="list"></aside></main>
+<script id="entrance-data" type="application/json">__ENTRANCE_DATA__</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+"use strict";
+const data = JSON.parse(document.getElementById("entrance-data").textContent);
+const features = data.entrances.features;
+const COLOR = {complete: "#16a34a", needs_survey: "#d97706", place: "#6366f1"};
+const STATUS = {complete: "값 확인됨", needs_survey: "현장 보완 필요", place: "장소"};
+const YN = {yes: "있음", no: "없음", unknown: "모름"};
+document.getElementById("title").textContent = data.title;
+const c = data.entrances.properties.status_counts;
+document.getElementById("summary").textContent =
+  `출입구·장소 ${features.length}곳 · 값 확인됨 ${c.complete || 0} · 현장 보완 필요 ${c.needs_survey || 0} · 장소 ${c.place || 0} · 건물 ${new Set(features.map(f => f.properties.building_id)).size}개`;
+
+const map = L.map("map", {maxZoom: 21});
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 21, maxNativeZoom: 19, attribution: "&copy; OpenStreetMap"}).addTo(map);
+// 라벨 요소는 지도 위치가 정해진 뒤에 만들어지므로 먼저 범위를 맞춘다.
+const pts = features.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]]);
+pts.length ? map.fitBounds(L.latLngBounds(pts).pad(0.08)) : map.setView([37.3825, 126.6705], 17);
+const counts = {};
+for (const f of features) counts[f.properties.building_id] = (counts[f.properties.building_id] || 0) + 1;
+for (const b of data.buildings) {
+  if (!b.outline) continue;
+  const n = counts[b.id] || 0;
+  L.polygon(b.outline.map(p => [p[1], p[0]]), {color: n ? "#1d4ed8" : "#94a3b8", weight: n ? 1.5 : 1,
+    fillColor: n ? "#3b82f6" : "#cbd5e1", fillOpacity: n ? 0.15 : 0.1, interactive: false}).addTo(map);
+  if (b.named) {
+    const m = L.marker([b.point[1], b.point[0]], {interactive: false,
+      icon: L.divIcon({className: "bldg-label", html: "", iconSize: [90, 14], iconAnchor: [45, 7]})}).addTo(map);
+    m.getElement().textContent = b.name + (n ? "" : " (0)");
+  }
+}
+
+function amount(v, unit) { return v.state === "yes" ? (v.amount == null ? "있음 (값 미입력)" : `있음 ${v.amount}${unit}`) : YN[v.state]; }
+function describe(p) {
+  return [
+    `계단 ${amount(p.stairs, "단")} · 문턱 ${amount(p.threshold_cm, "cm")} · 경사로 ${YN[p.ramp]}`,
+    `문 ${data.door_label[p.door_type] || "모름"}` + (p.opening_hours ? ` · 운영 ${p.opening_hours}` : ""),
+    p.note ? `메모 ${p.note}` : "",
+    p.gps ? `GPS ±${Math.round(p.gps.accuracy_m)}m · 핀 이동 ${p.pin_moved_m ?? "-"}m` : "GPS 없음",
+  ].filter(Boolean);
+}
+const layers = {complete: L.layerGroup().addTo(map), needs_survey: L.layerGroup().addTo(map), place: L.layerGroup().addTo(map)};
+const gpsLayer = L.layerGroup();
+const markers = {}, cards = {};
+const list = document.getElementById("list");
+for (const f of features.slice().sort((a, b) => (a.properties.building_name || "").localeCompare(b.properties.building_name || "", "ko"))) {
+  const p = f.properties, [lon, lat] = f.geometry.coordinates;
+  const marker = L.marker([lat, lon], {icon: L.divIcon({className: "", html: `<div class="dot" style="background:${COLOR[p.status]}"></div>`, iconSize: [14, 14], iconAnchor: [7, 7]})}).addTo(layers[p.status]);
+  const box = document.createElement("div");
+  const title = document.createElement("b");
+  title.textContent = `${p.building_name} · ${p.entrance_name || ""}`;
+  box.append(title);
+  for (const t of describe(p)) { const d = document.createElement("div"); d.className = "line"; d.textContent = t; box.append(d); }
+  if (p.missing.length) { const d = document.createElement("div"); d.className = "line miss"; d.textContent = "미확인: " + p.missing.join(", "); box.append(d); }
+  if (p.photo_url) { const img = document.createElement("img"); img.src = p.photo_url; img.loading = "lazy"; img.style.cssText = "width:220px;border-radius:6px;margin-top:6px"; box.append(img); }
+  marker.bindPopup(box, {maxWidth: 260});
+  markers[p.id] = marker;
+  if (p.gps) {
+    L.circle([p.gps.lat, p.gps.lon], {radius: p.gps.accuracy_m || 1, color: "#64748b", weight: 1, fillOpacity: 0.05, interactive: false}).addTo(gpsLayer);
+    L.polyline([[p.gps.lat, p.gps.lon], [lat, lon]], {color: "#64748b", weight: 1, dashArray: "3 3", interactive: false}).addTo(gpsLayer);
+  }
+  const card = document.createElement("div");
+  card.className = "card";
+  const head = document.createElement("b");
+  const tag = document.createElement("span"); tag.className = "tag " + p.status; tag.textContent = STATUS[p.status];
+  head.append(tag, document.createTextNode(`${p.building_name} · ${p.entrance_name || ""}`));
+  card.append(head);
+  const line = document.createElement("div"); line.className = "line"; line.textContent = describe(p)[0]; card.append(line);
+  if (p.missing.length) { const d = document.createElement("div"); d.className = "line miss"; d.textContent = "미확인: " + p.missing.join(", "); card.append(d); }
+  card.onclick = () => { for (const k in cards) cards[k].classList.remove("active"); card.classList.add("active"); map.setView([lat, lon], 19); marker.openPopup(); };
+  cards[p.id] = card;
+  list.append(card);
+}
+for (const s of Object.keys(layers)) document.getElementById("f-" + s).onchange = e => e.target.checked ? layers[s].addTo(map) : map.removeLayer(layers[s]);
+document.getElementById("f-gps").onchange = e => e.target.checked ? gpsLayer.addTo(map) : map.removeLayer(gpsLayer);
+const legend = L.control({position: "bottomleft"});
+legend.onAdd = () => { const d = L.DomUtil.create("div", "legend");
+  d.innerHTML = Object.keys(COLOR).map(k => `<span class="dot" style="display:inline-block;background:${COLOR[k]};vertical-align:middle"></span> ${STATUS[k]}`).join("<br>"); return d; };
+legend.addTo(map);
+</script>
+</body>
+</html>

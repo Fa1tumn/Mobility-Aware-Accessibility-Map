@@ -14,3 +14,4 @@ data/events/events.json
 
 # 출입구 웹앱 로컬 설정
 web/entrance/config.js
+data/campus/entrances_registered.json

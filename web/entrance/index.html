@@ -123,6 +123,7 @@ function styleFor(id) {
 function drawBuildings() {
   buildingLayer.clearLayers();
   for (const b of buildings) {
+    if (!b.outline || !b.point) continue;      // 위치 미정 건물은 목록에만
     const poly = L.polygon(b.outline.map(p => [p[1], p[0]]), styleFor(b.id)).addTo(buildingLayer);
     poly.on("click", () => { if (state.step === 0) selectBuilding(b); });
     polygons[b.id] = poly;
@@ -366,7 +367,7 @@ function go(step) { state.step = step; render(); }
 function selectBuilding(b) {
   state.building = {id: b.id, name: b.named ? b.name : (knownNames[b.id] || ""), unnamed: !b.named};
   refreshPolygons();
-  map.fitBounds(polygons[b.id].getBounds(), {maxZoom: 19, padding: [30, 30]});
+  if (polygons[b.id]) map.fitBounds(polygons[b.id].getBounds(), {maxZoom: 19, padding: [30, 30]});
   render();
 }
 

@@ -11,6 +11,7 @@
     needs_survey  계단·문턱·경사로 중 미확인이 있다 (또는 '있음'인데 단수·높이를 안 쟀다)
     needs_link    값은 다 있는데 연결할 보행로를 아직 확인하지 않았다
     attached      graph에 출입구 노드와 연결 간선을 넣었다
+    place         출입구가 아닌 장소(메모가 "[장소]"로 시작). graph에 넣지 않는다
     invalid       핀 좌표가 없거나, 확인한 노드가 graph에 없다
 """
 
@@ -27,6 +28,13 @@ from app.graph.schema import Edge, Graph, Node
 # 핀에서 이 거리 안의 보행로 노드를 연결 후보로 보여준다(m).
 CANDIDATE_RADIUS_M = 25.0
 MAX_CANDIDATES = 3
+
+PLACE_TAG = "[장소]"
+
+
+def is_place(record: dict) -> bool:
+    return (record.get("note") or "").startswith(PLACE_TAG)
+
 
 DOOR_LABEL = {"automatic": "자동문", "button": "버튼식", "push": "미는 문", "pull": "당기는 문",
               "revolving": "회전문", "open": "문 없음", "unknown": "문 종류 모름"}
@@ -135,6 +143,10 @@ def attach_entrances(graph: Graph, records: Iterable[dict], links: Optional[dict
             review.reason = "핀 좌표 없음"
             continue
         review.candidates = candidates_for(graph, lat, lon, radius_m)
+        if is_place(record):
+            review.status = "place"
+            review.reason = "출입구가 아닌 장소"
+            continue
         review.missing = missing_items(record)
         review.link = links.get(rid) or links.get(node_id)
         if review.missing:

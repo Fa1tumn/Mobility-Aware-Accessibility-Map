@@ -2,5 +2,12 @@
   "note": "OSM에 이름이 없는 건물에 붙이는 이름. 키는 OSM way ID. 현장에서 확인한 이름만 넣는다.",
   "names": {
     "1096854782": "자유관 A"
-  }
+  },
+  "extra_note": "OSM에 윤곽이 없는 건물. 위치를 모르면 outline/point를 비워 두고, 현장 확인 후 채운다.",
+  "extra": [
+    {
+      "id": "pending_pharma_bio",
+      "name": "제약바이오융합연구센터 (K-NIBRT, 위치 미정)"
+    }
+  ]
 }

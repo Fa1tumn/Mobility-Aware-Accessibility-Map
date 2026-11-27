@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_RAW = ROOT / "data" / "campus" / "entrances_registered.json"
 DEFAULT_LINKS = ROOT / "data" / "campus" / "entrance_links.json"
 STATUS_TEXT = {"needs_survey": "현장 보완 필요", "needs_link": "연결 확인 필요", "attached": "graph에 연결됨",
-               "invalid": "오류"}
+               "place": "장소(출입구 아님)", "invalid": "오류"}
 
 
 def fetch_entrances() -> list[dict]:

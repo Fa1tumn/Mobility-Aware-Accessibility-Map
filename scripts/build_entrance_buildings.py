@@ -76,6 +76,16 @@ def convert(osm: dict, campus, names: dict | None = None, margin_m: float = MARG
     return buildings
 
 
+def placeholders(extra: list[dict]) -> list[dict]:
+    """윤곽을 모르는 건물. 목록·검색에는 나오고 지도에는 그리지 않는다(outline이 없으면)."""
+    out = []
+    for row in extra:
+        item = {"id": row["id"], "name": row["name"], "named": True, "placeholder": True,
+                "point": row.get("point"), "outline": row.get("outline")}
+        out.append(item)
+    return out
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="웹앱용 캠퍼스 건물 목록 생성")
     parser.add_argument("osm_json", type=Path)
@@ -84,8 +94,9 @@ def main(argv=None) -> int:
     parser.add_argument("--margin-m", type=float, default=MARGIN_M)
     args = parser.parse_args(argv)
     osm = json.loads(args.osm_json.read_text(encoding="utf-8"))
-    names = json.loads(args.names.read_text(encoding="utf-8")).get("names", {}) if args.names.is_file() else {}
-    buildings = convert(osm, load_campus_grid(), names, args.margin_m)
+    extra_file = json.loads(args.names.read_text(encoding="utf-8")) if args.names.is_file() else {}
+    names = extra_file.get("names", {})
+    buildings = convert(osm, load_campus_grid(), names, args.margin_m) + placeholders(extra_file.get("extra", []))
     payload = {
         "source": "OpenStreetMap contributors (ODbL), building ways in/near config/campus_grid.json",
         "buildings": buildings,
