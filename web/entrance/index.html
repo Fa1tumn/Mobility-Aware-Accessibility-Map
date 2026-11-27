@@ -218,27 +218,48 @@ const queueDel = id => tx("readwrite", s => s.delete(id));
 
 // ───────────────────────────── 업로드
 function headers(extra) {
-  const h = Object.assign({apikey: CONFIG.key}, extra || {});
-  if (CONFIG.key.startsWith("eyJ")) h.Authorization = "Bearer " + CONFIG.key;
-  return h;
+  // Storage는 Authorization이 필수다. 공개 키(sb_publishable_)도 apikey와 같은 값을 Bearer로 보낸다.
+  return Object.assign({apikey: CONFIG.key, Authorization: "Bearer " + CONFIG.key}, extra || {});
 }
 const base = () => CONFIG.url.replace(/\/+$/, "").replace(/\/rest\/v1$/, "");
+// iOS Safari는 IndexedDB에 넣은 Blob을 페이지를 다시 연 뒤 못 읽는 경우가 있어 바이트(ArrayBuffer)로 보관한다.
+async function photoBytes(photo) {
+  if (!photo) return null;
+  if (photo instanceof ArrayBuffer) return photo;
+  try { return await photo.arrayBuffer(); } catch (e) { return undefined; }   // undefined = 읽을 수 없음
+}
 async function uploadOne(item) {
   const r = item.record;
   if (item.photo && !r.photo_path) {
-    const path = `${r.recorded_at.slice(0, 10)}/${r.id}.jpg`;
-    const res = await fetch(`${base()}/storage/v1/object/${CONFIG.bucket}/${path}`, {
-      method: "POST", headers: headers({"Content-Type": "image/jpeg", "x-upsert": "false"}), body: item.photo});
-    if (!res.ok && res.status !== 409 && !/Duplicate|already exists/i.test(await res.text())) {
-      throw new Error(`사진 업로드 실패 (HTTP ${res.status})`);
+    const bytes = await photoBytes(item.photo);
+    if (bytes === undefined) {
+      // 사진은 잃었지만 출입구 기록은 살린다. 사진만 다시 찍으면 된다.
+      r.note = [r.note, "사진 전송 실패: 다시 촬영 필요"].filter(Boolean).join(" · ");
+      item.photo = null;
+      await queuePut(item);
+    } else {
+      const path = `${r.recorded_at.slice(0, 10)}/${r.id}.jpg`;
+      let res;
+      try {
+        res = await fetch(`${base()}/storage/v1/object/${CONFIG.bucket}/${path}`, {
+          method: "POST", headers: headers({"Content-Type": "image/jpeg", "x-upsert": "false"}),
+          body: new Blob([bytes], {type: "image/jpeg"})});
+      } catch (e) { throw new Error(`사진 업로드 중 연결 실패: ${e.message}`); }
+      const text = res.ok ? "" : await res.text();
+      if (!res.ok && res.status !== 409 && !/Duplicate|already exists/i.test(text)) {
+        throw new Error(`사진 업로드 실패 (HTTP ${res.status}) ${text.slice(0, 160)}`);
+      }
+      r.photo_path = path;
+      await queuePut(item);
     }
-    r.photo_path = path;
-    await queuePut(item);
   }
-  const res = await fetch(`${base()}/rest/v1/${CONFIG.table}?on_conflict=id`, {
-    method: "POST",
-    headers: headers({"Content-Type": "application/json", Prefer: "resolution=ignore-duplicates,return=minimal"}),
-    body: JSON.stringify(r)});
+  let res;
+  try {
+    res = await fetch(`${base()}/rest/v1/${CONFIG.table}?on_conflict=id`, {
+      method: "POST",
+      headers: headers({"Content-Type": "application/json", Prefer: "resolution=ignore-duplicates,return=minimal"}),
+      body: JSON.stringify(r)});
+  } catch (e) { throw new Error(`기록 저장 중 연결 실패: ${e.message}`); }
   if (!res.ok) throw new Error(`저장 실패 (HTTP ${res.status}) ${(await res.text()).slice(0, 160)}`);
   await queueDel(r.id);
 }
@@ -250,7 +271,7 @@ async function flush() {
   try {
     for (const item of await queueAll()) {
       try { await uploadOne(item); } catch (e) {
-        lastError = e instanceof TypeError ? `서버에 연결하지 못했습니다 (${CONFIG.url}). 주소·통신을 확인하세요.` : e.message;
+        lastError = e.message;
         break;
       }
     }
@@ -464,7 +485,7 @@ async function save() {
     door_type: s.doorType, opening_hours: s.hours.trim() || null, note: s.note.trim() || null,
     photo_path: null, client: navigator.userAgent.slice(0, 200),
   };
-  await queuePut({record, photo: s.photo});
+  await queuePut({record, photo: s.photo ? await s.photo.arrayBuffer() : null});
   setStatus(navigator.onLine ? "올리는 중..." : "오프라인: 휴대폰에 저장했습니다. 연결되면 자동으로 올립니다.", navigator.onLine ? "" : "warn");
   await flush();
   const left = (await queueAll()).some(i => i.record.id === record.id);
