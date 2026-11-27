@@ -492,7 +492,15 @@ function renderSave() {
 }
 
 function num(v, int) { if (v === "" || v == null) return null; const n = int ? parseInt(v, 10) : parseFloat(v); return Number.isFinite(n) && n >= 0 ? n : null; }
+let saving = false;
 async function save() {
+  if (saving) return;             // 두 번 눌러도 한 건만 저장
+  saving = true;
+  const button = sheet.querySelector("button.primary");
+  if (button) { button.disabled = true; button.textContent = "저장 중..."; }
+  try { await saveOnce(); } finally { saving = false; }
+}
+async function saveOnce() {
   const s = state;
   const record = {
     id: crypto.randomUUID ? crypto.randomUUID() : ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)),
