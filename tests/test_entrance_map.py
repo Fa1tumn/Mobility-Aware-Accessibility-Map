@@ -19,15 +19,16 @@ def test_status_and_unknown_kept_empty():
                            rec("c", note="[장소] 셔틀버스 정류장")], "https://x/storage/v1/object/public/entrance-photos")
     props = {f["properties"]["id"]: f["properties"] for f in fc["features"]}
     assert props["a"]["status"] == "complete"
-    assert props["b"]["status"] == "needs_survey"
-    assert props["b"]["missing"] == ["계단 단수"]                         # 잰 값은 지어내지 않음
+    # 계단이 있으면 휠체어 추천에서 빠지므로 단수 미측정은 조사 필요가 아닌 '측정 불필요'로 둔다
+    assert props["b"]["status"] == "complete"
+    assert props["b"]["missing"] == [] and props["b"]["unmeasured"] == ["계단 단수"]
     assert props["b"]["stairs"] == {"state": "yes", "amount": None}
     assert props["b"]["threshold_cm"] == {"state": "no", "amount": 0, "assumed": True}
     assert props["b"]["assumed"] == ["문턱"] and props["b"]["recorded_as"]["threshold"] == "unknown"
     assert props["a"]["threshold_cm"] == {"state": "no", "amount": 0}
     assert props["c"]["kind"] == "place" and props["c"]["status"] == "place"
     assert props["a"]["photo_url"].endswith("/entrance-photos/2026-11-27/x.jpg")
-    assert fc["properties"]["status_counts"] == {"complete": 1, "needs_survey": 1, "place": 1}
+    assert fc["properties"]["status_counts"] == {"complete": 2, "place": 1}
 
 
 def test_map_html_embeds_data_safely(tmp_path):
@@ -45,3 +46,20 @@ def test_strict_mode_keeps_unknown():
     p = fc["features"][0]["properties"]
     assert p["status"] == "needs_survey" and p["threshold_cm"] == {"state": "unknown", "amount": None}
     assert p["assumed"] == []
+
+
+def test_wheelchair_exclusion_rules():
+    fc = build_collection([
+        rec("ok"),
+        rec("st", stairs="yes", stairs_count=2),
+        rec("th", threshold="yes"),                                   # 높이 미측정
+        rec("room", entrance_name="자유관A 계단실 출입구"),
+    ])
+    p = {f["properties"]["id"]: f["properties"] for f in fc["features"]}
+    assert p["ok"]["wheelchair"] == {"recommended": True, "reasons": []}
+    assert p["st"]["wheelchair"]["reasons"] == ["계단 2단"]
+    assert p["th"]["wheelchair"]["reasons"] == ["문턱 있음"]
+    assert p["th"]["status"] == "complete" and p["th"]["unmeasured"] == ["문턱 높이"]
+    assert p["th"]["threshold_cm"]["amount"] is None                   # 높이를 지어내지 않음
+    assert p["room"]["wheelchair"]["reasons"] == ["계단실 출입구"]
+    assert fc["properties"]["wheelchair_excluded"] == 3

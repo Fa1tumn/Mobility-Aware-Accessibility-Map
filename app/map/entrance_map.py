@@ -9,6 +9,11 @@
     needs_survey  값을 지어낼 수 없는 항목이 있다('있음'인데 단수·높이 미입력, strict면 '모름'도)
     place         출입구가 아닌 장소 (메모가 "[장소]"로 시작)
 팀 결정에 따라 '모름'은 '없음'으로 읽고(assumed에 기록, 원본은 그대로), 잰 적 없는 숫자는 채우지 않는다.
+
+휠체어 추천 제외 (팀 결정 2026-11-27)
+    계단 있음 · 문턱 있음(높이와 상관없이) · 이름/메모에 '계단실' → wheelchair.recommended = False
+    이 경우 계단 단수·문턱 높이를 안 쟀어도 휠체어 판정에는 충분하므로 needs_survey로 보지 않고,
+    잰 적 없는 값은 unmeasured에 남긴다(amount는 null).
 """
 
 from __future__ import annotations
@@ -24,11 +29,32 @@ DOOR_LABEL = {"automatic": "자동문", "button": "버튼식", "push": "미는 �
               "revolving": "회전문", "open": "문 없음", "unknown": "모름"}
 
 
-def entrance_status(record: dict) -> tuple[str, list[str]]:
+AMOUNT_ONLY = {"계단 단수", "문턱 높이"}
+
+
+def wheelchair_assessment(record: dict) -> dict:
+    reasons = []
+    if record.get("stairs") == "yes":
+        n = record.get("stairs_count")
+        reasons.append(f"계단 {n}단" if isinstance(n, (int, float)) and n > 0 else "계단 있음")
+    if record.get("threshold") == "yes":
+        cm = record.get("threshold_cm")
+        reasons.append(f"문턱 {cm:g}cm" if isinstance(cm, (int, float)) and cm > 0 else "문턱 있음")
+    text = f"{record.get('entrance_name') or ''} {record.get('note') or ''}"
+    if "계단실" in text:
+        reasons.append("계단실 출입구")
+    return {"recommended": not reasons, "reasons": reasons}
+
+
+def entrance_status(record: dict) -> tuple[str, list[str], list[str]]:
+    """(상태, 미확인 항목, 잰 적 없지만 판정에는 충분한 항목)."""
     if is_place(record):
-        return "place", []
+        return "place", [], []
     missing = missing_items(record)
-    return ("needs_survey" if missing else "complete"), missing
+    excluded = not wheelchair_assessment(record)["recommended"]
+    unmeasured = [m for m in missing if excluded and m in AMOUNT_ONLY]
+    missing = [m for m in missing if m not in unmeasured]
+    return ("needs_survey" if missing else "complete"), missing, unmeasured
 
 
 def _value(record: dict, key: str, amount_key: str, assumed: list[str], label: str):
@@ -52,7 +78,7 @@ def _raw_value(record: dict, key: str, amount_key: str):
 def to_feature(record: dict, photo_base: str = "", strict: bool = False) -> dict:
     original = record
     record, assumed = apply_unknown_policy(record, strict or is_place(record))
-    status, missing = entrance_status(record)
+    status, missing, unmeasured = entrance_status(record)
     photo = record.get("photo_path")
     return {
         "type": "Feature",
@@ -62,6 +88,8 @@ def to_feature(record: dict, photo_base: str = "", strict: bool = False) -> dict
             "kind": "place" if status == "place" else "entrance",
             "status": status,
             "missing": missing,
+            "unmeasured": unmeasured,
+            "wheelchair": None if status == "place" else wheelchair_assessment(record),
             "building_id": record.get("building_id"),
             "building_name": record.get("building_name"),
             "entrance_name": record.get("entrance_name"),
@@ -87,9 +115,11 @@ def build_collection(records: list[dict], photo_base: str = "", strict: bool = F
     features = [to_feature(r, photo_base, strict) for r in records
                 if isinstance(r.get("pin_lat"), (int, float)) and isinstance(r.get("pin_lon"), (int, float))]
     counts = Counter(f["properties"]["status"] for f in features)
+    excluded = sum(1 for f in features if f["properties"]["wheelchair"] and not f["properties"]["wheelchair"]["recommended"])
     return {
         "type": "FeatureCollection",
         "properties": {"count": len(features), "status_counts": dict(counts),
+                       "wheelchair_excluded": excluded,
                        "assumed_unknown_as_no": not strict,
                        "assumed_features": sum(bool(f["properties"]["assumed"]) for f in features),
                        "note": ("'모름'은 '없음'으로 읽음(팀 결정). 해당 값에 assumed=true, 원래 입력은 recorded_as. "
