@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="출입구 등록">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>출입구 등록</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font:16px -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;color:#0f172a;background:#f1f5f9}
+body{display:flex;flex-direction:column;height:100dvh}
+header{display:flex;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;background:#1d4ed8;color:white}
+header h1{font-size:17px;margin:0;flex:1}
+#queue{font-size:13px;background:rgba(255,255,255,.2);border:0;color:white;border-radius:14px;padding:4px 10px}
+#map{flex:1;min-height:38vh}
+#sheet{background:white;border-top:1px solid #cbd5e1;padding:10px 14px calc(12px + env(safe-area-inset-bottom));max-height:58vh;overflow:auto}
+.steps{display:flex;gap:4px;margin-bottom:8px}
+.steps span{flex:1;height:4px;border-radius:2px;background:#e2e8f0}
+.steps span.on{background:#1d4ed8}
+h2{font-size:17px;margin:4px 0 8px}
+p.hint{margin:4px 0 10px;color:#475569;font-size:14px;line-height:1.45}
+input[type=text],input[type=number],input[type=search],textarea,select{width:100%;font-size:16px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;background:white}
+textarea{min-height:60px}
+label.field{display:block;margin:10px 0 4px;font-size:14px;color:#334155}
+button{font-size:16px;border-radius:10px;border:0;padding:12px 14px;background:#e2e8f0;color:#0f172a}
+button.primary{background:#1d4ed8;color:white}
+button:disabled{opacity:.45}
+.row{display:flex;gap:8px;margin-top:12px}
+.row>button{flex:1}
+#results{list-style:none;margin:8px 0 0;padding:0;max-height:24vh;overflow:auto;border:1px solid #e2e8f0;border-radius:8px}
+#results li{padding:11px 12px;border-bottom:1px solid #f1f5f9}
+#results li.sel{background:#dbeafe;font-weight:600}
+.seg{display:flex;border:1px solid #cbd5e1;border-radius:9px;overflow:hidden;margin-top:4px}
+.seg button{flex:1;border-radius:0;background:white;padding:10px 4px;font-size:15px}
+.seg button.on{background:#1d4ed8;color:white}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.chips button{padding:8px 12px;border-radius:16px;background:white;border:1px solid #cbd5e1;font-size:15px}
+.chips button.on{background:#1d4ed8;color:white;border-color:#1d4ed8}
+.status{font-size:14px;color:#334155;background:#f8fafc;border-radius:8px;padding:8px 10px;margin-top:8px;line-height:1.5}
+.warn{color:#b45309}.ok{color:#15803d}.err{color:#b91c1c}
+#preview{max-width:100%;max-height:28vh;border-radius:8px;display:none;margin-top:8px}
+.photo-btn{display:block;text-align:center;padding:14px;border-radius:10px;background:#1d4ed8;color:white;font-size:16px}
+.photo-btn input{display:none}
+.bldg-label{background:transparent;border:0;font-size:11px;font-weight:600;color:#1e3a8a;text-shadow:0 0 3px white,0 0 3px white;white-space:nowrap}
+.pin{width:22px;height:22px;border-radius:50%;background:#dc2626;border:3px solid white;box-shadow:0 1px 5px #333}
+.done-dot{width:14px;height:14px;border-radius:50%;background:#16a34a;border:2px solid white;box-shadow:0 1px 3px #333}
+.small{font-size:13px;color:#64748b}
+</style>
+</head>
+<body>
+<header>
+  <h1>출입구 등록</h1>
+  <button id="queue" type="button" hidden></button>
+</header>
+<div id="map"></div>
+<section id="sheet"></section>
+
+<script src="config.js" onerror="void 0"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+"use strict";
+// ───────────────────────────── 설정
+const DEFAULTS = {table: "entrances", bucket: "entrance-photos"};
+function loadConfig() {
+  const hash = new URLSearchParams(location.hash.slice(1));
+  if (hash.get("url") && hash.get("key")) {
+    localStorage.setItem("entrance.config", JSON.stringify({url: hash.get("url"), key: hash.get("key")}));
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+  const saved = JSON.parse(localStorage.getItem("entrance.config") || "null");
+  const fromFile = window.ENTRANCE_CONFIG || null;
+  const c = Object.assign({}, DEFAULTS, fromFile || {}, saved || {});
+  return c.url && c.key ? c : null;
+}
+function checkKey(key) {
+  if (/^sb_secret_/.test(key) || /service_role/.test(atobSafe(key.split(".")[1] || ""))) {
+    return "비밀 키입니다. 웹앱에는 공개 키(sb_publishable_...)만 넣으세요.";
+  }
+  return "";
+}
+function atobSafe(s) { try { return atob(s.replace(/-/g, "+").replace(/_/g, "/")); } catch (e) { return ""; } }
+let CONFIG = loadConfig();
+
+// ───────────────────────────── 상태
+const state = {
+  step: 0,
+  building: null,          // {id, name}
+  gps: null,               // {lat, lon, accuracy, time}
+  pin: null,               // {lat, lon}
+  photo: null,             // Blob
+  stairs: "unknown", stairsCount: "", ramp: "unknown", threshold: "unknown", thresholdCm: "",
+  doorType: "unknown", entranceName: "", hours: "", note: "",
+};
+const LABEL = {yes: "있음", no: "없음", unknown: "모름"};
+const DOORS = [["automatic", "자동문"], ["button", "버튼식"], ["push", "미는 문"], ["pull", "당기는 문"],
+               ["revolving", "회전문"], ["open", "문 없음"], ["unknown", "모름"]];
+let buildings = [];
+
+// ───────────────────────────── 지도
+const map = L.map("map", {zoomControl: false}).setView([37.3825, 126.6705], 17);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  {maxZoom: 21, maxNativeZoom: 19, attribution: "&copy; OpenStreetMap"}).addTo(map);
+L.control.zoom({position: "topright"}).addTo(map);
+const buildingLayer = L.layerGroup().addTo(map);
+const doneLayer = L.layerGroup().addTo(map);
+let pinMarker = null, accuracyCircle = null, gpsMarker = null;
+const polygons = {};
+
+function styleFor(id) {
+  const sel = state.building && state.building.id === id;
+  return {color: sel ? "#1d4ed8" : "#2563eb", weight: sel ? 3 : 1.5, fillColor: "#3b82f6", fillOpacity: sel ? 0.4 : 0.12};
+}
+function drawBuildings() {
+  buildingLayer.clearLayers();
+  for (const b of buildings) {
+    const poly = L.polygon(b.outline.map(p => [p[1], p[0]]), styleFor(b.id)).addTo(buildingLayer);
+    poly.on("click", () => { if (state.step === 0) selectBuilding(b); });
+    polygons[b.id] = poly;
+    if (b.named) {
+      L.marker([b.point[1], b.point[0]], {interactive: false,
+        icon: L.divIcon({className: "bldg-label", html: "", iconSize: [80, 14], iconAnchor: [40, 7]})})
+        .addTo(buildingLayer).getElement().textContent = b.name;
+    }
+  }
+}
+function refreshPolygons() { for (const b of buildings) polygons[b.id] && polygons[b.id].setStyle(styleFor(b.id)); }
+
+map.on("click", e => { if (state.step === 1) { state.pinFromGps = false; setPin(e.latlng.lat, e.latlng.lng); } });
+
+function setPin(lat, lon) {
+  state.pin = {lat, lon};
+  if (!pinMarker) {
+    pinMarker = L.marker([lat, lon], {draggable: true,
+      icon: L.divIcon({className: "", html: '<div class="pin"></div>', iconSize: [22, 22], iconAnchor: [11, 11]})}).addTo(map);
+    pinMarker.on("drag", ev => { const p = ev.target.getLatLng(); state.pin = {lat: p.lat, lon: p.lng}; state.pinFromGps = false; renderPinStatus(); });
+  } else {
+    pinMarker.setLatLng([lat, lon]);
+  }
+  renderPinStatus();
+}
+
+// ───────────────────────────── 위치
+function distanceM(a, b) {
+  const R = 6371008.8, r = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function locate() {
+  if (!navigator.geolocation) { setStatus("이 브라우저는 위치를 지원하지 않습니다. 지도를 눌러 핀을 놓으세요.", "err"); return; }
+  if (!isSecureContext) { setStatus("https 주소에서만 위치를 쓸 수 있습니다. 지도를 눌러 핀을 놓으세요.", "err"); return; }
+  setStatus("위치를 찾는 중... 10초 정도 기다리면 더 정확해집니다.");
+  let best = null;
+  const started = Date.now();
+  const watch = navigator.geolocation.watchPosition(pos => {
+    const c = pos.coords;
+    if (!best || c.accuracy < best.accuracy) {
+      best = {lat: c.latitude, lon: c.longitude, accuracy: c.accuracy, time: new Date(pos.timestamp).toISOString()};
+      state.gps = best;
+      showGps(best);
+      if (!state.pin || state.pinFromGps) { setPin(best.lat, best.lon); state.pinFromGps = true; }
+      map.setView([best.lat, best.lon], Math.max(map.getZoom(), 19));
+    }
+    if (best.accuracy <= 5 || Date.now() - started > 12000) navigator.geolocation.clearWatch(watch);
+  }, err => {
+    navigator.geolocation.clearWatch(watch);
+    const why = err.code === 1 ? "위치 권한이 꺼져 있습니다 (설정 > 개인정보 보호 > 위치 서비스 > Safari)." : "위치를 찾지 못했습니다.";
+    setStatus(why + " 지도를 눌러 핀을 놓으세요.", "err");
+  }, {enableHighAccuracy: true, maximumAge: 0, timeout: 15000});
+  setTimeout(() => navigator.geolocation.clearWatch(watch), 15000);
+}
+function showGps(g) {
+  if (accuracyCircle) map.removeLayer(accuracyCircle);
+  if (gpsMarker) map.removeLayer(gpsMarker);
+  accuracyCircle = L.circle([g.lat, g.lon], {radius: g.accuracy, color: "#2563eb", weight: 1, fillOpacity: 0.1, interactive: false}).addTo(map);
+  gpsMarker = L.circleMarker([g.lat, g.lon], {radius: 5, color: "#2563eb", fillOpacity: 1, interactive: false}).addTo(map);
+}
+
+// ───────────────────────────── 사진
+async function compress(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = fail; i.src = url; });
+    const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    return await new Promise(ok => canvas.toBlob(ok, "image/jpeg", 0.8));
+  } finally { URL.revokeObjectURL(url); }
+}
+
+// ───────────────────────────── 임시 저장 (IndexedDB)
+function db() {
+  return new Promise((ok, fail) => {
+    const req = indexedDB.open("entrance-app", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("queue", {keyPath: "record.id"});
+    req.onsuccess = () => ok(req.result);
+    req.onerror = () => fail(req.error);
+  });
+}
+async function tx(mode, fn) {
+  const d = await db();
+  return new Promise((ok, fail) => {
+    const t = d.transaction("queue", mode);
+    const out = fn(t.objectStore("queue"));
+    t.oncomplete = () => ok(out && out.result !== undefined ? out.result : out);
+    t.onerror = () => fail(t.error);
+  });
+}
+const queueAll = () => tx("readonly", s => s.getAll());
+const queuePut = item => tx("readwrite", s => s.put(item));
+const queueDel = id => tx("readwrite", s => s.delete(id));
+
+// ───────────────────────────── 업로드
+function headers(extra) {
+  const h = Object.assign({apikey: CONFIG.key}, extra || {});
+  if (CONFIG.key.startsWith("eyJ")) h.Authorization = "Bearer " + CONFIG.key;
+  return h;
+}
+const base = () => CONFIG.url.replace(/\/+$/, "").replace(/\/rest\/v1$/, "");
+async function uploadOne(item) {
+  const r = item.record;
+  if (item.photo && !r.photo_path) {
+    const path = `${r.recorded_at.slice(0, 10)}/${r.id}.jpg`;
+    const res = await fetch(`${base()}/storage/v1/object/${CONFIG.bucket}/${path}`, {
+      method: "POST", headers: headers({"Content-Type": "image/jpeg", "x-upsert": "false"}), body: item.photo});
+    if (!res.ok && res.status !== 409 && !/Duplicate|already exists/i.test(await res.text())) {
+      throw new Error(`사진 업로드 실패 (HTTP ${res.status})`);
+    }
+    r.photo_path = path;
+    await queuePut(item);
+  }
+  const res = await fetch(`${base()}/rest/v1/${CONFIG.table}?on_conflict=id`, {
+    method: "POST",
+    headers: headers({"Content-Type": "application/json", Prefer: "resolution=ignore-duplicates,return=minimal"}),
+    body: JSON.stringify(r)});
+  if (!res.ok) throw new Error(`저장 실패 (HTTP ${res.status}) ${(await res.text()).slice(0, 160)}`);
+  await queueDel(r.id);
+}
+let flushing = false;
+async function flush() {
+  if (flushing || !CONFIG) return;
+  flushing = true;
+  let lastError = "";
+  try {
+    for (const item of await queueAll()) {
+      try { await uploadOne(item); } catch (e) { lastError = e.message; break; }
+    }
+  } finally {
+    flushing = false;
+    await updateQueueBadge(lastError);
+    if (!lastError) loadDone();
+  }
+}
+async function updateQueueBadge(error) {
+  const n = (await queueAll()).length;
+  const b = document.getElementById("queue");
+  b.hidden = n === 0 && !error;
+  b.textContent = n ? `전송 대기 ${n}건` : "";
+  b.title = error || "";
+  if (error && n) b.textContent += " · 다시 시도";
+}
+document.getElementById("queue").onclick = flush;
+window.addEventListener("online", flush);
+
+async function loadDone() {
+  if (!CONFIG) return;
+  try {
+    const q = "select=id,building_name,entrance_name,pin_lat,pin_lon,stairs,ramp,threshold,door_type,photo_path,recorded_at,recorder&order=recorded_at.desc&limit=1000";
+    const res = await fetch(`${base()}/rest/v1/${CONFIG.table}?${q}`, {headers: headers()});
+    if (!res.ok) return;
+    doneLayer.clearLayers();
+    for (const e of await res.json()) {
+      const m = L.marker([e.pin_lat, e.pin_lon], {icon: L.divIcon({className: "", html: '<div class="done-dot"></div>', iconSize: [14, 14], iconAnchor: [7, 7]})}).addTo(doneLayer);
+      const box = document.createElement("div");
+      const title = document.createElement("b");
+      title.textContent = `${e.building_name}${e.entrance_name ? " · " + e.entrance_name : ""}`;
+      const body = document.createElement("div");
+      body.style.whiteSpace = "pre-line";
+      body.textContent = `계단 ${LABEL[e.stairs]} · 경사로 ${LABEL[e.ramp]} · 문턱 ${LABEL[e.threshold]}\n` +
+        `${(DOORS.find(d => d[0] === e.door_type) || ["", "모름"])[1]} · ${(e.recorded_at || "").slice(0, 16).replace("T", " ")} ${e.recorder || ""}`;
+      box.append(title, body);
+      if (e.photo_path) {
+        const img = document.createElement("img");
+        img.src = `${base()}/storage/v1/object/public/${CONFIG.bucket}/${e.photo_path}`;
+        img.style.cssText = "width:180px;border-radius:6px;margin-top:6px";
+        box.append(img);
+      }
+      m.bindPopup(box);
+    }
+  } catch (e) { /* 오프라인이면 다음에 다시 */ }
+}
+
+// ───────────────────────────── 화면
+const sheet = document.getElementById("sheet");
+function el(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "on") for (const [ev, fn] of Object.entries(v)) e.addEventListener(ev, fn);
+    else if (k === "class") e.className = v;
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const k of kids) e.append(k);
+  return e;
+}
+function header(title, hint) {
+  const steps = el("div", {class: "steps"});
+  for (let i = 0; i < 5; i++) steps.append(el("span", {class: i <= state.step ? "on" : ""}));
+  return [steps, el("h2", {}, `${state.step + 1}. ${title}`), el("p", {class: "hint"}, hint)];
+}
+function nav(nextLabel, canNext, onNext) {
+  return el("div", {class: "row"},
+    el("button", {type: "button", disabled: state.step === 0, on: {click: () => go(state.step - 1)}}, "이전"),
+    el("button", {type: "button", class: "primary", disabled: !canNext, on: {click: onNext || (() => go(state.step + 1))}}, nextLabel));
+}
+let statusBox = null;
+function setStatus(text, cls) { if (statusBox) { statusBox.textContent = text; statusBox.className = "status " + (cls || ""); } }
+function go(step) { state.step = step; render(); }
+
+function selectBuilding(b) {
+  state.building = {id: b.id, name: b.name};
+  refreshPolygons();
+  map.fitBounds(polygons[b.id].getBounds(), {maxZoom: 19, padding: [30, 30]});
+  render();
+}
+
+function renderBuilding() {
+  sheet.append(...header("건물 선택", "지도에서 건물을 누르거나 이름으로 찾으세요."));
+  const search = el("input", {type: "search", placeholder: "건물 이름 (예: 진리관 B)", autocomplete: "off"});
+  const list = el("ul", {id: "results"});
+  const fill = () => {
+    list.replaceChildren();
+    const q = search.value.trim().replace(/\s+/g, "");
+    for (const b of buildings.filter(b => b.name.replace(/\s+/g, "").includes(q)).slice(0, 40)) {
+      list.append(el("li", {class: state.building && state.building.id === b.id ? "sel" : "", on: {click: () => selectBuilding(b)}}, b.name));
+    }
+    if (q) list.append(el("li", {on: {click: () => { state.building = {id: null, name: search.value.trim()}; refreshPolygons(); render(); }}},
+      `목록에 없음: "${search.value.trim()}"(으)로 등록`));
+  };
+  search.addEventListener("input", fill);
+  fill();
+  const chosen = el("div", {class: "status"}, state.building ? `선택: ${state.building.name}` : "선택한 건물 없음");
+  sheet.append(search, list, chosen, nav("다음: 출입구 위치", !!state.building));
+}
+
+function renderPinStatus() {
+  if (state.step !== 1) return;
+  const parts = [];
+  if (state.gps) parts.push(`GPS 정확도 ±${Math.round(state.gps.accuracy)}m`);
+  else parts.push("GPS 위치 없음");
+  if (state.pin && state.gps) parts.push(`핀을 GPS에서 ${distanceM(state.gps, state.pin).toFixed(1)}m 옮김`);
+  if (!state.pin) parts.push("핀 없음");
+  const cls = state.gps && state.gps.accuracy > 15 ? "warn" : "";
+  setStatus(parts.join(" · ") + (cls ? " — 정확도가 낮습니다. 핀을 실제 문 위치로 끌어 맞추세요." : ""), cls);
+  const next = sheet.querySelector("button.primary");
+  if (next) next.disabled = !state.pin;
+}
+function renderPin() {
+  sheet.append(...header("출입구 위치", "문 앞에 서서 '현재 위치'를 누르고, 빨간 핀을 실제 문 위치로 끌어 맞추세요. 지도를 눌러도 핀이 옮겨집니다."));
+  sheet.append(el("button", {type: "button", class: "primary", style: "width:100%", on: {click: locate}}, "현재 위치로 이동"));
+  statusBox = el("div", {class: "status"});
+  sheet.append(statusBox, nav("다음: 사진", !!state.pin));
+  if (pinMarker) pinMarker.dragging.enable();
+  renderPinStatus();
+}
+
+function renderPhoto() {
+  sheet.append(...header("사진 촬영", "문과 문 앞 진입로(계단·경사로)가 함께 보이게 찍으세요."));
+  const input = el("input", {type: "file", accept: "image/*", capture: "environment"});
+  const preview = el("img", {id: "preview", alt: "출입구 사진"});
+  statusBox = el("div", {class: "status"}, state.photo ? "사진 준비됨" : "아직 사진이 없습니다.");
+  if (state.photo) { preview.src = URL.createObjectURL(state.photo); preview.style.display = "block"; }
+  input.addEventListener("change", async () => {
+    if (!input.files[0]) return;
+    setStatus("사진 줄이는 중...");
+    try {
+      state.photo = await compress(input.files[0]);
+      preview.src = URL.createObjectURL(state.photo);
+      preview.style.display = "block";
+      setStatus(`사진 준비됨 (${Math.round(state.photo.size / 1024)}KB)`, "ok");
+    } catch (e) { setStatus("사진을 읽지 못했습니다. 다시 찍어 주세요.", "err"); }
+  });
+  sheet.append(el("label", {class: "photo-btn"}, state.photo ? "다시 찍기" : "카메라 열기", input), preview, statusBox,
+    nav(state.photo ? "다음: 상태" : "사진 없이 다음", true));
+}
+
+function segmented(key, title, extra) {
+  const wrap = el("div", {});
+  wrap.append(el("label", {class: "field"}, title));
+  const seg = el("div", {class: "seg"});
+  for (const v of ["yes", "no", "unknown"]) {
+    seg.append(el("button", {type: "button", class: state[key] === v ? "on" : "", on: {click: () => { state[key] = v; render(); }}}, LABEL[v]));
+  }
+  wrap.append(seg);
+  if (extra && state[key] === "yes") wrap.append(extra);
+  return wrap;
+}
+function renderState() {
+  sheet.append(...header("상태", "확실하지 않으면 '모름'으로 두세요. 나중에 보완 목록에 남습니다."));
+  const count = el("input", {type: "number", inputmode: "numeric", min: 0, placeholder: "계단 단수 (선택)", value: state.stairsCount,
+    on: {input: e => { state.stairsCount = e.target.value; }}});
+  const cm = el("input", {type: "number", inputmode: "decimal", min: 0, step: 0.5, placeholder: "문턱 높이 cm (선택)", value: state.thresholdCm,
+    on: {input: e => { state.thresholdCm = e.target.value; }}});
+  count.style.marginTop = cm.style.marginTop = "6px";
+  sheet.append(segmented("stairs", "계단", count), segmented("ramp", "경사로"), segmented("threshold", "문턱", cm));
+  sheet.append(el("label", {class: "field"}, "문 종류"));
+  const chips = el("div", {class: "chips"});
+  for (const [v, t] of DOORS) chips.append(el("button", {type: "button", class: state.doorType === v ? "on" : "", on: {click: () => { state.doorType = v; render(); }}}, t));
+  sheet.append(chips, nav("다음: 저장", true));
+}
+
+function renderSave() {
+  sheet.append(...header("저장", "이름과 운영 시간은 아는 경우에만 적으세요."));
+  const field = (label, key, attrs, tag) => {
+    const input = el(tag || "input", Object.assign({value: state[key], on: {input: e => { state[key] = e.target.value; }}}, attrs));
+    if (tag === "textarea") input.value = state[key];
+    sheet.append(el("label", {class: "field"}, label), input);
+  };
+  field("출입구 이름", "entranceName", {type: "text", placeholder: "예: 정문, 지하 1층 문"});
+  field("운영 시간", "hours", {type: "text", placeholder: "예: 평일 08:00–22:00, 주말 닫힘"});
+  field("메모", "note", {placeholder: "예: 버튼은 오른쪽 기둥"}, "textarea");
+  const recorder = el("input", {type: "text", placeholder: "등록한 사람", value: localStorage.getItem("entrance.recorder") || "",
+    on: {input: e => localStorage.setItem("entrance.recorder", e.target.value)}});
+  sheet.append(el("label", {class: "field"}, "등록한 사람"), recorder);
+  const unknowns = ["stairs", "ramp", "threshold"].filter(k => state[k] === "unknown").map(k => ({stairs: "계단", ramp: "경사로", threshold: "문턱"})[k]);
+  if (state.doorType === "unknown") unknowns.push("문 종류");
+  statusBox = el("div", {class: "status " + (unknowns.length ? "warn" : "")},
+    `${state.building.name} · 핀 ${state.gps ? "GPS ±" + Math.round(state.gps.accuracy) + "m에서 조정" : "직접 지정"} · 사진 ${state.photo ? "있음" : "없음"}` +
+    (unknowns.length ? `\n미확인: ${unknowns.join(", ")}` : ""));
+  statusBox.style.whiteSpace = "pre-line";
+  sheet.append(statusBox, nav("저장", true, save));
+}
+
+function num(v, int) { if (v === "" || v == null) return null; const n = int ? parseInt(v, 10) : parseFloat(v); return Number.isFinite(n) && n >= 0 ? n : null; }
+async function save() {
+  const s = state;
+  const record = {
+    id: crypto.randomUUID ? crypto.randomUUID() : ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)),
+    recorded_at: new Date().toISOString(),
+    recorder: (localStorage.getItem("entrance.recorder") || "").trim() || null,
+    building_id: s.building.id, building_name: s.building.name, entrance_name: s.entranceName.trim() || null,
+    pin_lat: s.pin.lat, pin_lon: s.pin.lon,
+    gps_lat: s.gps ? s.gps.lat : null, gps_lon: s.gps ? s.gps.lon : null,
+    gps_accuracy_m: s.gps ? s.gps.accuracy : null, gps_time: s.gps ? s.gps.time : null,
+    pin_moved_m: s.gps ? Math.round(distanceM(s.gps, s.pin) * 10) / 10 : null,
+    stairs: s.stairs, stairs_count: s.stairs === "yes" ? num(s.stairsCount, true) : (s.stairs === "no" ? 0 : null),
+    ramp: s.ramp, threshold: s.threshold, threshold_cm: s.threshold === "yes" ? num(s.thresholdCm) : (s.threshold === "no" ? 0 : null),
+    door_type: s.doorType, opening_hours: s.hours.trim() || null, note: s.note.trim() || null,
+    photo_path: null, client: navigator.userAgent.slice(0, 200),
+  };
+  await queuePut({record, photo: s.photo});
+  setStatus(navigator.onLine ? "올리는 중..." : "오프라인: 휴대폰에 저장했습니다. 연결되면 자동으로 올립니다.", navigator.onLine ? "" : "warn");
+  await flush();
+  const left = (await queueAll()).some(i => i.record.id === record.id);
+  Object.assign(state, {step: 0, gps: null, pin: null, pinFromGps: false, photo: null, stairs: "unknown", stairsCount: "", ramp: "unknown",
+    threshold: "unknown", thresholdCm: "", doorType: "unknown", entranceName: "", hours: "", note: ""});
+  for (const layer of [pinMarker, accuracyCircle, gpsMarker]) if (layer) map.removeLayer(layer);
+  pinMarker = accuracyCircle = gpsMarker = null;
+  render();
+  setStatus(left ? "휴대폰에 임시 저장됨. 위 '전송 대기'를 눌러 다시 올릴 수 있습니다." : "저장했습니다. 같은 건물의 다른 출입구를 이어서 등록할 수 있어요.", left ? "warn" : "ok");
+}
+
+function renderSetup(message) {
+  sheet.append(el("h2", {}, "처음 한 번 설정"),
+    el("p", {class: "hint"}, "팀에서 받은 설정 링크로 열면 이 화면은 건너뜁니다. 직접 넣으려면 Supabase 프로젝트 주소와 공개 키(sb_publishable_...)를 입력하세요."));
+  const url = el("input", {type: "text", placeholder: "https://xxxx.supabase.co", autocapitalize: "off"});
+  const key = el("input", {type: "text", placeholder: "sb_publishable_...", autocapitalize: "off"});
+  statusBox = el("div", {class: "status err"}, message || "");
+  if (!message) statusBox.style.display = "none";
+  sheet.append(el("label", {class: "field"}, "프로젝트 주소"), url, el("label", {class: "field"}, "공개 키"), key, statusBox,
+    el("div", {class: "row"}, el("button", {type: "button", class: "primary", on: {click: () => {
+      const bad = checkKey(key.value.trim());
+      if (!/^https:\/\/.+/.test(url.value.trim()) || !key.value.trim() || bad) {
+        statusBox.style.display = "block"; statusBox.textContent = bad || "주소와 키를 확인하세요."; return;
+      }
+      localStorage.setItem("entrance.config", JSON.stringify({url: url.value.trim(), key: key.value.trim()}));
+      CONFIG = loadConfig(); render(); flush(); loadDone();
+    }}}, "저장")));
+}
+
+function render() {
+  sheet.replaceChildren();
+  statusBox = null;
+  if (!CONFIG) return renderSetup();
+  const bad = checkKey(CONFIG.key);
+  if (bad) { localStorage.removeItem("entrance.config"); CONFIG = null; return renderSetup(bad); }
+  if (pinMarker) state.step === 1 ? pinMarker.dragging.enable() : pinMarker.dragging.disable();
+  [renderBuilding, renderPin, renderPhoto, renderState, renderSave][state.step]();
+}
+
+fetch("buildings.json").then(r => r.json()).then(d => { buildings = d.buildings; drawBuildings(); render(); })
+  .catch(() => { render(); setStatus("건물 목록을 불러오지 못했습니다. 이름을 직접 입력하세요.", "err"); });
+render();
+updateQueueBadge();
+flush();
+loadDone();
+</script>
+</body>
+</html>
