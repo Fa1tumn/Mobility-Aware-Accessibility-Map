@@ -172,3 +172,16 @@ def test_building_list_names_margin_and_apartment_filter():
     assert "osm_way_2" in out and not out["osm_way_2"]["named"]       # 가장자리 60m 안
     assert "osm_way_3" not in out                                      # 숫자 이름(아파트 동)
     assert "osm_way_4" not in out                                      # 200m 밖
+
+
+def test_building_relation_is_included_and_deduplicated():
+    campus = load_campus_grid()
+    lat, lon = campus.to_geographic(80, 80)
+    ring = [{"lat": lat, "lon": lon}, {"lat": lat + 0.0001, "lon": lon}, {"lat": lat, "lon": lon + 0.0001}]
+    rel = {"type": "relation", "id": 9, "tags": {"building": "dormitory", "name": "송도학사 F"},
+           "members": [{"type": "way", "role": "outer", "geometry": ring}]}
+    dup = {"type": "relation", "id": 10, "tags": {"building": "yes", "name": "자유관 A"},
+           "members": [{"type": "way", "role": "outer", "geometry": ring}]}
+    way = {"type": "way", "id": 5, "tags": {"building": "yes"}, "geometry": ring}
+    out = convert({"elements": [rel, dup, way]}, campus, names={"5": "자유관 A"})
+    assert {b["id"]: b["name"] for b in out} == {"osm_relation_9": "송도학사 F", "osm_way_5": "자유관 A"}
