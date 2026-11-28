@@ -7,12 +7,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from app.map.campus_grid import load_campus_grid
+from app.map.grid_comfort import add_comfort_measurements
 from app.map.grid_pipeline import build_campus_grid, build_grid, build_grid_from_env
-from app.map.grid_visualization import save_grid_image, save_grid_map
+from app.map.grid_visualization import LABELS, grid_value, save_grid_image, save_grid_map
 from app.storage.supabase_reader import ROOT, fetch_observations
 
 
 YONSEI_DEMO_CELL_SIZE_M = 50
+DEFAULT_ENTRANCES = ROOT / "data/campus/entrances.geojson"
+DEFAULT_COMFORT = ROOT / "data/campus/comfort.geojson"
 
 
 def demo_observations():
@@ -78,8 +81,10 @@ def main():
     source.add_argument("--yonsei-demo", action="store_true")
     source.add_argument("--input", type=Path)
     source.add_argument("--sqlite", type=Path)
+    parser.add_argument("--entrances", type=Path, help="Entrance GeoJSON (default: campus entrance snapshot for real campus data)")
+    parser.add_argument("--comfort", type=Path, help="Scored IMU window GeoJSON (default: campus comfort snapshot for real campus data)")
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--field", choices=["weight", "ramp", "ave_vibration", "object"], default="weight")
+    parser.add_argument("--field", choices=LABELS, default="weight")
     sizing = parser.add_mutually_exclusive_group()
     sizing.add_argument("--cell-size-m", type=float, help="Target side length of a campus cell in meters")
     sizing.add_argument("--size", type=float, help="Legacy cell size in degrees")
@@ -120,9 +125,25 @@ def main():
             else:
                 result = build_campus_grid(rows, args.cell_size_m, args.size)
             title = "Local observations" if args.input or args.sqlite else "Supabase observations"
-        save_grid_image(result, args.output, f"{title} - {args.field}", args.field)
-        map_title = "Yonsei International Campus - Grid and Simulated Observations" if args.yonsei_demo else f"{title} - {args.field}"
-        save_grid_map(result, args.output.with_suffix(".html"), map_title, args.field)
+        fixed_campus = not (args.demo or args.yonsei_demo or args.auto_bounds)
+        comfort_source = args.comfort or (DEFAULT_COMFORT if fixed_campus and DEFAULT_COMFORT.is_file() else None)
+        comfort = None
+        if comfort_source is not None:
+            comfort = add_comfort_measurements(result, json.loads(comfort_source.read_text(encoding="utf-8")))
+        if args.field == "comfort_cost" and not (comfort and comfort["cell_count"]):
+            raise ValueError("No scored comfort windows in the grid. Supply a matching GeoJSON with --comfort.")
+        if args.field == "comfort_cost":
+            map_title = "Yonsei International Campus" if fixed_campus else title
+            image_title = f"{title} - {LABELS[args.field]}"
+        else:
+            image_title = f"{title} - {args.field}"
+            map_title = "Yonsei International Campus - Grid and Simulated Observations" if args.yonsei_demo else image_title
+        save_grid_image(result, args.output, image_title, args.field)
+        entrance_source = args.entrances
+        if entrance_source is None and fixed_campus:
+            entrance_source = DEFAULT_ENTRANCES if DEFAULT_ENTRANCES.is_file() else None
+        entrances = json.loads(entrance_source.read_text(encoding="utf-8")) if entrance_source else None
+        save_grid_map(result, args.output.with_suffix(".html"), map_title, args.field, entrances=entrances, comfort=comfort)
         cells = [{"row": i, "column": j, **result.get_cell_geometry(i, j), **cell} for (i, j), cell in result.grid.items()]
         args.output.with_suffix(".json").write_text(json.dumps(cells, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
         args.output.with_name(args.output.stem + "_observations.json").write_text(json.dumps(rows, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
@@ -132,10 +153,12 @@ def main():
     print(f"Mapped observations: {mapped}/{len(rows)}; grid: {result.rows} x {result.columns}")
     if mapped != len(rows):
         print(f"Excluded {len(rows) - mapped} observations with invalid coordinates or outside the campus grid.")
-    measured = sum(cell[args.field] is not None for cell in result.grid.values())
+    measured = sum(grid_value(cell, args.field) is not None for cell in result.grid.values())
     print(f"Cells with {args.field}: {measured}")
     if not measured:
         print("This field has no complete measurements. Try --field ramp or --field ave_vibration.")
+    if comfort is not None:
+        print(f"Comfort map: {comfort['window_count']}/{comfort['source_count']} scored windows in {comfort['cell_count']} grid cells")
     print(f"Image: {args.output}")
     print(f"Cells: {args.output.with_suffix('.json')}")
     print(f"Map: {args.output.with_suffix('.html')}")

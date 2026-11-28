@@ -135,7 +135,7 @@ python -m scripts.test_grid --sqlite app/map/test_observations.sqlite3 --auto-bo
 python -m scripts.test_grid --sqlite app/map/test_observations.sqlite3 --auto-bounds --field ave_vibration --output output/grid/database_vibration.png
 ```
 
-`--field`에는 `weight`, `ramp`, `ave_vibration`, `object`를 지정할 수 있으며, 기본값은 `weight`입니다.
+`--field`에는 `weight`, `ramp`, `ave_vibration`, `object`, `comfort_cost`를 지정할 수 있으며, 기본값은 `weight`입니다.
 제공된 원본 샘플 5개는 모두 `objects_supported=0`이므로 경사도와 진동은 표시할 수 있지만, 종합 가중치는 미확인 상태입니다.
 관측값이 있는 격자는 영역 전체를 채색하고, 관측값이 없는 영역은 흰색으로 표시합니다. 정적 그림은 행과 열이 각각 25개 이하일 때 번호와 수치를 표시합니다. 더 촘촘한 격자는 HTML에서 확대하여 확인할 수 있습니다.
 
@@ -161,6 +161,27 @@ Supabase에서 매번 새로 조회하고, `record_time`의 최신 날짜(UTC)�
 ```
 
 `--field ramp` 또는 `--field ave_vibration`을 추가하면 개별 지표를 확인할 수 있습니다.
+
+현장 SQLite 데이터로 출입구와 경로를 포함한 캠퍼스 지도를 다시 만들 수 있습니다.
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.test_grid --sqlite app/map/observations.sqlite3 --field ave_vibration
+.\.venv\Scripts\python.exe -m scripts.open_grid output/grid/grid.html
+```
+
+- 실제 캠퍼스 격자는 `data/campus/entrances.geojson`을 함께 표시합니다. `--entrances`로 다른 GeoJSON을 지정할 수 있습니다. 장소는 핀으로만 표시합니다.
+- 출입구가 속한 격자에 관측이 있으면 그 격자를 선택합니다. 비어 있으면 출입구에서 격자 경계까지의 거리가 가장 짧은 관측 격자를 선택합니다. 지도에 출입구와 도착 격자를 함께 표시합니다.
+- 출발점은 지도나 현재 위치로 지정합니다. 출발점에 관측이 없으면 경계가 25m 이내인 가장 가까운 관측 격자를 사용합니다. 경로는 변이나 꼭짓점을 맞댄 관측 격자의 중심을 잇습니다. 연결이 끊긴 곳은 화면에 표시합니다.
+- `Comfort first`는 격자 중심 사이의 거리와 격자에 집계된 RUBIK Pi 노면 분류·신뢰도 비용을 합산합니다. `Shortest`는 중심 사이의 거리 합만 사용합니다. 평균 진동 주파수(Hz)는 지도에서 볼 수 있으며, 진동 강도 계산에는 원시 가속도가 필요합니다. 격자의 연결 여부는 현장 통행 가능 여부와 별도로 확인해야 합니다.
+
+IMU 편안함 지도는 [RUBIK Pi PR #7](https://github.com/Fa1tumn/Mobility-Aware-Accessibility-Map-rubik/pull/7)의 `block_comfort.geojson`에서 필요한 좌표와 측정값을 가져옵니다. `data/campus/comfort.geojson`에 원본 커밋과 파일 해시를 기록했습니다. 각 격자에서 2초 창 비용의 중앙값을 구해 PR의 다섯 색 구간으로 표시합니다. 비용 1.00은 해당 실험의 기준값이고, 낮을수록 편안함으로 추정합니다. 회색 격자에는 점수가 있는 IMU 창이 없습니다. 격자를 선택하면 수직 RMS, 10m당 충격 수와 사용한 창 수를 볼 수 있습니다.
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.test_grid --sqlite app/map/observations.sqlite3 --field comfort_cost
+.\.venv\Scripts\python.exe -m scripts.open_grid output/grid/grid.html
+```
+
+HTML의 `Grid layer`에서 편안함과 평균 진동 주파수를 바꿉니다. 실행 절차와 현장 자료 검증 결과는 [캠퍼스 격자 길찾기와 이동 편안함 지도](docs/campus-grid-navigation.md)에 정리했습니다.
 
 데이터 조회와 시각화를 나누어 실행할 수도 있습니다.
 

@@ -15,10 +15,11 @@ h1{font-size:20px;margin:0 0 8px}p{margin:6px 0;line-height:1.5}
 #notice{padding:8px 12px;background:#fff4d6;border-radius:5px;color:#855700;font-size:13px}
 #status{color:#64748b}.workspace{display:flex;flex:1;min-height:0}
 #map{flex:1;min-width:0;background:#e9eef1}
+#map.picking-start,#map.picking-start .leaflet-interactive{cursor:crosshair}
 aside{width:400px;flex-shrink:0;display:flex;flex-direction:column;border-left:1px solid #d9e2ec;background:white;min-height:0}
 .panel-head{padding:16px;border-bottom:1px solid #e2e8f0}
 h2{font-size:18px;margin:0 0 8px}#point-count{color:#64748b;font-size:13px}
-#selected-region{background:#eff6ff;border-radius:6px;margin-top:10px;padding:10px;font-size:13px;line-height:1.7}
+#selected-region{background:#eff6ff;border-radius:6px;margin-top:10px;padding:10px;font-size:13px;line-height:1.7;white-space:pre-line}
 #point-list{overflow:auto;flex:1;padding:10px 12px}
 .point-card{border:1px solid #dbe2ea;border-radius:8px;padding:12px;margin-bottom:10px;background:white;scroll-margin:12px}
 .point-card.in-region{background:#f0f7ff}.point-card.active{border:2px solid #2563eb;padding:11px}
@@ -34,6 +35,15 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:11px;background:#f1f5f9
 .point-dot{background:#2563eb;border:2px solid white;border-radius:50%;color:white;text-align:center;font:bold 8px/16px Arial;box-shadow:0 1px 4px #555}
 .legend{padding:10px 14px;background:white;border-radius:5px;box-shadow:0 1px 5px #999;line-height:1.7;font-size:12px}
 .bar{height:9px;width:160px;background:linear-gradient(to right,#ffffcc,#fd8d3c,#800026)}
+.legend-swatch{display:inline-block;width:12px;height:12px;margin-right:6px;border-radius:2px;vertical-align:-1px}
+#navigation{padding:10px 16px;border-bottom:1px solid #e2e8f0;background:#f8fafc;font-size:13px}
+#navigation label{display:block;margin-bottom:5px}#entrance-select{width:100%;margin-bottom:8px}
+.route-controls{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.route-controls button,.route-controls select,#entrance-select{min-height:30px;padding:3px 6px}
+#route-result{white-space:pre-line;color:#334155}
+.entrance-pin{display:grid;place-items:center;border:2px solid white;border-radius:50%;background:#047857;color:white;font:bold 12px Arial;box-shadow:0 1px 4px #555}
+.entrance-pin.restricted{background:#b45309}.entrance-pin.place{background:#475569}
+.entrance-pin.selected{box-shadow:0 0 0 3px #7c3aed,0 2px 5px #555}
 @media(max-width:1000px){aside{width:340px}header{padding:12px 16px}h1{font-size:18px}}
 @media(max-width:720px){body{height:auto;min-height:100vh}.workspace{flex-direction:column;min-height:900px}#map{height:55vh;min-height:370px;flex:none}aside{width:100%;height:55vh;min-height:400px;border-left:0;border-top:1px solid #ddd}}
 </style>
@@ -44,15 +54,31 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:11px;background:#f1f5f9
 <p id="summary"></p>
 <p id="notice" hidden></p>
 <div class="controls">
+<label id="grid-layer-control" hidden>Grid layer <select id="grid-layer"><option value="comfort">Ride comfort</option><option value="measurement">Measurement</option></select></label>
 <label><input type="checkbox" id="tiles" checked>Basemap</label>
 <label><input type="checkbox" id="labels" checked>Region IDs and values</label>
 <label><input type="checkbox" id="points" checked>Observation points</label>
+<label id="entrance-toggle" hidden><input type="checkbox" id="entrances" checked>Entrances and places</label>
 <span id="status">Select a point on the map or in the sidebar to view its region.</span>
 </div>
 </header>
 <main class="workspace">
 <div id="map"></div>
 <aside aria-label="All observation point data">
+<section id="navigation" hidden aria-label="Entrance navigation">
+<label for="entrance-select">Entrance navigation</label>
+<select id="entrance-select"><option value="">Select an entrance</option></select>
+<label><input type="checkbox" id="recommended-only">Wheelchair-recommended entrances only</label>
+<div class="route-controls">
+<button type="button" id="map-origin">Set start on map</button>
+<button type="button" id="gps-origin">Use my location</button>
+<select id="route-mode" aria-label="Route preference">
+<option value="comfort">Comfort first</option>
+<option value="shortest">Shortest</option>
+</select>
+</div>
+<p id="route-result" role="status">Choose an entrance and a starting point.</p>
+</section>
 <div class="panel-head">
 <h2>All observation points</h2>
 <div id="point-count"></div>
@@ -63,13 +89,39 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:11px;background:#f1f5f9
 </main>
 <script id="grid-data" type="application/json">__GRID_DATA__</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>__GRID_NAVIGATION__</script>
 <script>
 const data = JSON.parse(document.getElementById('grid-data').textContent);
 const points = data.points || [];
+const cellById = new Map(data.cells.map(cell => [cell.grid_id, cell]));
+const observedCount = data.cells.filter(cell => cell.observation_count > 0).length;
+const layerControl = document.getElementById('grid-layer-control');
+const layerMenu = document.getElementById('grid-layer');
+let comfortActive = Boolean(data.comfort?.cell_count && data.comfort.show_default);
+let selectedGrid = null;
+if (data.comfort?.cell_count) {
+    layerControl.hidden = false;
+    layerMenu.value = comfortActive ? 'comfort' : 'measurement';
+    layerMenu.options[1].textContent = data.label;
+}
+const pointToggle = document.getElementById('points');
+const labelToggle = document.getElementById('labels');
+if (data.entrances?.length && points.length > 500) {
+    pointToggle.checked = false;
+    labelToggle.checked = false;
+}
 const showValue = value => value === null || value === undefined ? 'N/A' : Number(value).toFixed(2);
 const showCoordinate = value => Number(value).toFixed(6);
+const showCost = new Intl.NumberFormat('en', {minimumFractionDigits:2, maximumFractionDigits:4});
+const noComfortColor = '#a8adb4';
 document.getElementById('title').textContent = data.title;
-document.getElementById('summary').textContent = data.rows + ' rows × ' + data.columns + ' columns · ' + data.cells.length + ' observed regions · ' + points.length + ' points · One ' + data.label + ' value per region';
+function updateSummary() {
+    const details = comfortActive
+        ? [data.comfort.cell_count + ' scored grids', data.comfort.window_count + ' two-second IMU windows', data.comfort.survey_date].filter(Boolean).join(' · ')
+        : observedCount + ' observed regions · ' + points.length + ' points · ' + data.label;
+    document.getElementById('summary').textContent = data.rows + ' rows × ' + data.columns + ' columns · ' + details;
+}
+updateSummary();
 document.getElementById('point-count').textContent = 'All ' + points.length + ' points are listed below. Blue point IDs match the map.';
 if (data.simulated) {
     document.getElementById('notice').hidden = false;
@@ -79,7 +131,21 @@ const cards = {};
 const rectangles = {};
 const markers = {};
 let map = null;
+function updateSelectedRegion() {
+    if (selectedGrid === null) return;
+    const cell = cellById.get(selectedGrid);
+    const region = 'Region G' + selectedGrid;
+    const details = cell.comfort;
+    const text = comfortActive
+        ? (details ? [region + ' · ' + details.window_count + ' IMU ' + (details.window_count === 1 ? 'window' : 'windows'),
+            'Median comfort cost ' + showCost.format(details.cost),
+            'Vertical RMS ' + showValue(details.vertical_rms_mps2) + ' m/s² · Shocks ' + showValue(details.shocks_per_10m) + ' / 10 m'].join('\n')
+            : region + ' · No scored IMU windows')
+        : region + ' · ' + cell.observation_count + ' observations · ' + data.label + ' = ' + showValue(cell[data.field]) + ' · Region weight = ' + showValue(cell.weight);
+    document.getElementById('selected-region').textContent = text;
+}
 function selectRegion(gridId) {
+    selectedGrid = gridId;
     for (const cell of data.cells) {
         const selected = cell.grid_id === gridId;
         if (rectangles[cell.grid_id]) {
@@ -90,8 +156,7 @@ function selectRegion(gridId) {
         cards[point.point_id].classList.toggle('in-region',point.grid_id === gridId);
         cards[point.point_id].classList.remove('active');
     }
-    const cell = data.cells.find(cell => cell.grid_id === gridId);
-    document.getElementById('selected-region').textContent = 'Region G' + gridId + ' · ' + cell.observation_count + ' observations · ' + data.label + ' = ' + showValue(cell[data.field]) + ' · Region weight = ' + showValue(cell.weight);
+    updateSelectedRegion();
 }
 function selectPoint(pointId) {
     const point = points.find(point => point.point_id === pointId);
@@ -99,6 +164,7 @@ function selectPoint(pointId) {
     cards[pointId].classList.add('active');
     cards[pointId].scrollIntoView({behavior:'smooth',block:'nearest'});
     if (map) {
+        if (!pointToggle.checked) pointToggle.click();
         map.panTo([point.latitude,point.longitude]);
         markers[pointId].openPopup();
     }
@@ -168,39 +234,42 @@ if (typeof L === 'undefined') {
         tileToggle.checked = false;
         document.getElementById('status').textContent = 'Basemap unavailable or access blocked. Regions and point data remain available. Check your connection before enabling Basemap again.';
     });
-    map.fitBounds(L.latLngBounds([[data.south,data.west],[data.north,data.east]]).pad(0.03));
+    const initialBounds = comfortActive
+        ? L.latLngBounds(data.cells.filter(cell => cell.comfort).flatMap(cell => cell.corners)).pad(0.1)
+        : L.latLngBounds([[data.south,data.west],[data.north,data.east]]).pad(0.03);
+    map.fitBounds(initialBounds);
     if (!localFile) tiles.addTo(map);
     const gridStyle = {color:'#59636e',weight:0.7,opacity:0.6,interactive:false};
     L.polyline(data.lines,gridStyle).addTo(map);
-    const labels = L.layerGroup().addTo(map);
-    const pointLayer = L.layerGroup().addTo(map);
+    const labels = L.layerGroup();
+    const pointLayer = L.layerGroup();
+    const cellLayers = [];
     for (const cell of data.cells) {
-        const value = showValue(cell[data.field]);
         const rectangle = L.polygon(cell.corners,{
-            color:'#475569',weight:1.1,fillColor:cell.color,fillOpacity:0.55
-        }).addTo(map);
-        rectangle.on('click',() => {
+            color:'#475569',weight:1.1
+        });
+        const viewCell = () => {
+            if (map.getContainer().classList.contains('picking-start')) return;
             selectRegion(cell.grid_id);
             const first = points.find(point => point.grid_id === cell.grid_id);
             if (first) cards[first.point_id].scrollIntoView({behavior:'smooth',block:'nearest'});
-        });
+        };
+        rectangle.on('click', viewCell);
         rectangles[cell.grid_id] = rectangle;
-        const icon = L.divIcon({className:'cell-label',html:'G' + cell.grid_id + '<br>' + value,iconSize:[44,24],iconAnchor:[22,12]});
-        const label = L.marker(rectangle.getBounds().getCenter(),{icon}).addTo(labels);
-        label.on('click',() => {
-            selectRegion(cell.grid_id);
-            const first = points.find(point => point.grid_id === cell.grid_id);
-            if (first) cards[first.point_id].scrollIntoView({behavior:'smooth',block:'nearest'});
-        });
+        const label = L.marker(cell.center,{bubblingMouseEvents:true});
+        label.on('click', viewCell);
+        cellLayers.push({cell, rectangle, label});
     }
     for (const point of points) {
         const icon = L.divIcon({className:'point-dot',html:point.point_id,iconSize:[20,20],iconAnchor:[10,10]});
-        const marker = L.marker([point.latitude,point.longitude],{icon}).addTo(pointLayer);
+        const marker = L.marker([point.latitude,point.longitude],{icon,bubblingMouseEvents:true}).addTo(pointLayer);
         const popup = document.createElement('div');
         popup.style.whiteSpace = 'pre-line';
         popup.textContent = point.point_id + ' · Region G' + point.grid_id + '\nLatitude ' + showCoordinate(point.latitude) + '\nLongitude ' + showCoordinate(point.longitude) + '\nPoint weight ' + showValue(point.point_weight) + '\nRegion weight ' + showValue(point.region_weight) + '\nFull record in the sidebar';
         marker.bindPopup(popup,{minWidth:220});
-        marker.on('click',() => selectPoint(point.point_id));
+        marker.on('click', () => {
+            if (!map.getContainer().classList.contains('picking-start')) selectPoint(point.point_id);
+        });
         markers[point.point_id] = marker;
     }
     tileToggle.onchange = event => {
@@ -211,18 +280,56 @@ if (typeof L === 'undefined') {
             map.removeLayer(tiles);
         }
     };
-    document.getElementById('labels').onchange = event => event.target.checked ? labels.addTo(map) : map.removeLayer(labels);
-    document.getElementById('points').onchange = event => event.target.checked ? pointLayer.addTo(map) : map.removeLayer(pointLayer);
+    if (labelToggle.checked) labels.addTo(map);
+    if (pointToggle.checked) pointLayer.addTo(map);
+    labelToggle.onchange = event => event.target.checked ? labels.addTo(map) : map.removeLayer(labels);
+    pointToggle.onchange = event => event.target.checked ? pointLayer.addTo(map) : map.removeLayer(pointLayer);
     const legend = L.control({position:'bottomleft'});
-    legend.onAdd = () => {
-        const div = L.DomUtil.create('div','legend');
-        div.innerHTML = '<b>Aggregated region values</b><div class="bar"></div>';
-        const text = document.createElement('div');
-        text.textContent = data.low.toFixed(2) + ' → ' + data.high.toFixed(2) + ' · Grey = unknown';
-        div.appendChild(text);
-        return div;
-    };
+    legend.onAdd = () => L.DomUtil.create('div','legend');
     legend.addTo(map);
+    function updateGridLayer() {
+        for (const {cell, rectangle, label} of cellLayers) {
+            const visible = comfortActive || cell.observation_count > 0;
+            if (!visible) {
+                rectangle.remove();
+                labels.removeLayer(label);
+                continue;
+            }
+            const value = comfortActive ? (cell.comfort ? showCost.format(cell.comfort.cost) : 'N/A') : showValue(cell[data.field]);
+            const fillColor = comfortActive ? (cell.comfort?.color || noComfortColor) : cell.color;
+            rectangle.setStyle({fillColor, fillOpacity:comfortActive ? 0.74 : 0.55}).addTo(map);
+            const icon = L.divIcon({className:'cell-label',html:'G' + cell.grid_id + '<br>' + value,iconSize:[44,24],iconAnchor:[22,12]});
+            label.setIcon(icon).addTo(labels);
+        }
+        const legendBox = legend.getContainer();
+        const heading = document.createElement('b');
+        heading.textContent = comfortActive ? 'Ride comfort cost' : 'Aggregated region values';
+        legendBox.replaceChildren(heading);
+        if (comfortActive) {
+            for (const [color, title] of [...data.comfort.legend, [noComfortColor, 'No scored IMU windows']]) {
+                const row = document.createElement('div');
+                const swatch = document.createElement('span');
+                swatch.className = 'legend-swatch';
+                swatch.style.backgroundColor = color;
+                row.append(swatch, title);
+                legendBox.append(row);
+            }
+        } else {
+            legendBox.append(L.DomUtil.create('div', 'bar'));
+        }
+        const scale = document.createElement('div');
+        scale.textContent = comfortActive ? 'Lower is more comfortable · 1.00 = survey reference'
+            : data.low.toFixed(2) + ' → ' + data.high.toFixed(2) + ' · Grey = unknown';
+        legendBox.append(scale);
+        updateSummary();
+        updateSelectedRegion();
+    }
+    updateGridLayer();
+    layerMenu.onchange = () => {
+        comfortActive = layerMenu.value === 'comfort';
+        updateGridLayer();
+    };
+    if (data.entrances?.length) setupEntranceNavigation(map, data);
     window.addEventListener('resize',() => map.invalidateSize());
 }
 </script>

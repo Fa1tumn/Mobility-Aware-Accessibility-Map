@@ -42,7 +42,7 @@ def main():
     sizing = parser.add_mutually_exclusive_group()
     sizing.add_argument("--cell-size-m", type=float, help="캠퍼스 격자 한 변의 목표 길이(m)")
     sizing.add_argument("--size", type=float, help="기존 격자 간격(도)")
-    parser.add_argument("--field", choices=["weight", "ramp", "ave_vibration", "object"], default="ave_vibration")
+    parser.add_argument("--field", choices=["weight", "ramp", "ave_vibration", "object", "comfort_cost"], default="ave_vibration")
     args = parser.parse_args()
     size_flag = "--size" if args.size is not None else "--cell-size-m"
     size = args.size if args.size is not None else args.cell_size_m
